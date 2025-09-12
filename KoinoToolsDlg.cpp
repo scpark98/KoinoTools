@@ -112,6 +112,18 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	// TODO: 여기에 추가 초기화 작업을 추가합니다.
 	m_resize.Create(this);
 	m_resize.Add(IDC_TREE, 0, 0, 0, 100);
+	m_resize.Add(IDC_LIST, 0, 0, 100, 100);
+
+	m_static_code_sign_manifest.set_back_color(Gdiplus::Color::Ivory);
+	m_static_code_sign_manifest.set_round(10, Gdiplus::Color::Gray, get_sys_color(COLOR_3DFACE));
+	m_static_code_sign_manifest.set_font_size(10);
+	m_static_code_sign_manifest.set_tooltip_text(_T("LMMAgent.exe는 반드시 manifest를 포함할 것"));
+
+
+	m_static_code_sign_no_manifest.set_back_color(Gdiplus::Color::Ivory);
+	m_static_code_sign_no_manifest.set_round(10, Gdiplus::Color::Gray, get_sys_color(COLOR_3DFACE));
+	m_static_code_sign_no_manifest.set_font_size(10);
+	m_static_code_sign_no_manifest.set_round(10, Gdiplus::Color::Gray, get_sys_color(COLOR_3DFACE));
 
 	init_tree();
 	init_list();
@@ -219,6 +231,8 @@ void CKoinoToolsDlg::OnBnClickedOk()
 void CKoinoToolsDlg::OnBnClickedCancel()
 {
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	m_list.save_column_width(&theApp, _T("list"));
+
 	CDialogEx::OnCancel();
 }
 
@@ -291,9 +305,9 @@ void CKoinoToolsDlg::init_tree()
 
 void CKoinoToolsDlg::init_list()
 {
-	m_list.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_FLATSB);
+	m_list.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | LVS_EX_GRIDLINES);
 
-	m_list.set_headings(_T("항목,100;경로,200;"));
+	m_list.set_headings(_T("항목,100;경로,300;"));
 	m_list.set_font_size(9);
 	//set_font_name(_T("맑은 고딕"));
 	//set_font_size(), set_font_name()을 호출하지 않고 set_header_height()을 호출하면
@@ -307,4 +321,10 @@ void CKoinoToolsDlg::init_list()
 
 	m_list.allow_edit_column(col_item, false);
 	m_list.allow_edit_column(col_value, true);
+	m_list.load_column_width(&theApp, _T("list"));
+
+	int index = m_list.add_item(_T("mt path"));
+	//m_list.set_item_text(index, col_value, theApp.m_mt_path);
+	index = m_list.add_item(_T("signtool path"));
+	index = m_list.add_item(_T("manifest path"));
 }
