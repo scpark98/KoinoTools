@@ -40,6 +40,8 @@ CKoinoToolsApp theApp;
 
 BOOL CKoinoToolsApp::InitInstance()
 {
+	AfxInitRichEdit2();
+	// TODO: richedit2 라이브러리를 초기화하려면 AfxInitRichEdit2()을(를) 호출합니다.\n"
 	// Windows XP에서는 InitCommonControlsEx()를 필요로 합니다.
 	// 사용하도록 지정하는 경우, Windows XP 상에서 반드시 InitCommonControlsEx()가 필요합니다.
 	// InitCommonControlsEx()를 사용하지 않으면 창을 만들 수 없습니다.
@@ -69,7 +71,7 @@ BOOL CKoinoToolsApp::InitInstance()
 	// 해당 설정이 저장된 레지스트리 키를 변경하십시오.
 	// TODO: 이 문자열을 회사 또는 조직의 이름과 같은
 	// 적절한 내용으로 수정해야 합니다.
-	SetRegistryKey(_T("로컬 애플리케이션 마법사에서 생성된 애플리케이션"));
+	SetRegistryKey(_T("Koino"));
 
 	CKoinoToolsDlg dlg;
 	m_pMainWnd = &dlg;

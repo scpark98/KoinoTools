@@ -8,6 +8,7 @@
 #include "KoinoToolsDlg.h"
 #include "afxdialogex.h"
 
+#include <thread>
 #include "Common/Functions.h"
 
 #ifdef _DEBUG
@@ -64,6 +65,8 @@ void CKoinoToolsDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_STATIC_CODE_SIGN_MANIFEST, m_static_code_sign_manifest);
 	DDX_Control(pDX, IDC_STATIC_CODE_SIGN_NO_MANIFEST, m_static_code_sign_no_manifest);
 	DDX_Control(pDX, IDC_LIST, m_list);
+	DDX_Control(pDX, IDC_TREE, m_tree);
+	DDX_Control(pDX, IDC_RICH, m_rich);
 }
 
 BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
@@ -75,6 +78,8 @@ BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
 	ON_BN_CLICKED(IDCANCEL, &CKoinoToolsDlg::OnBnClickedCancel)
 	ON_WM_WINDOWPOSCHANGED()
 	ON_WM_DROPFILES()
+	ON_NOTIFY(TVN_SELCHANGED, IDC_TREE, &CKoinoToolsDlg::OnTvnSelchangedTree)
+	ON_NOTIFY(LVN_ENDLABELEDIT, IDC_LIST, &CKoinoToolsDlg::OnLvnEndLabelEditList)
 END_MESSAGE_MAP()
 
 
@@ -112,13 +117,13 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	// TODO: 여기에 추가 초기화 작업을 추가합니다.
 	m_resize.Create(this);
 	m_resize.Add(IDC_TREE, 0, 0, 0, 100);
-	m_resize.Add(IDC_LIST, 0, 0, 100, 100);
+	m_resize.Add(IDC_LIST, 0, 0, 100, 0);
+	m_resize.Add(IDC_RICH, 0, 0, 100, 100);
 
 	m_static_code_sign_manifest.set_back_color(Gdiplus::Color::Ivory);
 	m_static_code_sign_manifest.set_round(10, Gdiplus::Color::Gray, get_sys_color(COLOR_3DFACE));
 	m_static_code_sign_manifest.set_font_size(10);
 	m_static_code_sign_manifest.set_tooltip_text(_T("LMMAgent.exe는 반드시 manifest를 포함할 것"));
-
 
 	m_static_code_sign_no_manifest.set_back_color(Gdiplus::Color::Ivory);
 	m_static_code_sign_no_manifest.set_round(10, Gdiplus::Color::Gray, get_sys_color(COLOR_3DFACE));
@@ -127,6 +132,10 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 
 	init_tree();
 	init_list();
+	init_rich();
+
+	m_tree.select_item(_T("LinkMeMine"));
+	//m_tree.iterate_tree_in_order();
 
 	RestoreWindowPosition(&theApp, this);
 
@@ -188,36 +197,6 @@ HCURSOR CKoinoToolsDlg::OnQueryDragIcon()
 void CKoinoToolsDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-	if (nIDEvent == timer_)
-	{
-		KillTimer(timer_);
-
-		//CWnd* pWnd = FindWindowByCaption(_T("토큰 로그온"), true);
-		CWnd* pWnd = FindWindowByCaption(_T("KoinoTools"), true);
-		CRect rw;
-
-		if (!pWnd)
-			return;
-
-		SetForegroundWindowForce(pWnd->m_hWnd, true);
-
-		pWnd->GetWindowRect(rw);
-
-		//암호 입력창으로 커서 이동
-		SetCursorPos(rw.left + 220, rw.top + 181);
-
-		//이미 입력된 암호가 있다면 지우기 위해 더블클릭 후 제거
-		sc_mouse_event(mouse_event_ldbclick);
-		keybd_event(VK_BACK, 0, 0, 0);
-
-		//지정된 암호를 입력한다.
-		CString pw = _T("Koino1807!");
-		m_ki.add(pw);
-
-		//OK 버튼 클릭
-		Wait(1000);
-		sc_mouse_event(mouse_event_lclick, rw.left + 380, rw.top + 258);
-	}
 
 	CDialogEx::OnTimer(nIDEvent);
 }
@@ -249,25 +228,56 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
 	m_action = action_no_action;
 
+	TCHAR sfile[MAX_PATH];
+	int count = DragQueryFile(hDropInfo, 0xffffffff, NULL, 0);
+
 	POINT pt;
 	DragQueryPoint(hDropInfo, &pt);
 
 	// Convert to client coordinates of main window
-	::ClientToScreen(m_hWnd, &pt);        // absolute screen
-	::ScreenToClient(m_hWnd, &pt);        // back to dialog client coords (safer)
+	//::ClientToScreen(m_hWnd, &pt);        // absolute screen
+	//::ScreenToClient(m_hWnd, &pt);        // back to dialog client coords (safer)
 
 	// Find child control at this point
 	CWnd* pCtrl = ChildWindowFromPoint(pt);
 	if (pCtrl == &m_static_code_sign_manifest)
+	{
 		m_action = action_codesign_manifest;
-		//TRACE(_T("m_static_code_sign_manifest\n"));
+		TRACE(_T("m_static_code_sign_manifest\n"));
+	}
 	else if (pCtrl == &m_static_code_sign_no_manifest)
+	{
 		m_action = action_codesign_no_manifest;
-		//TRACE(_T("m_static_code_sign_no_manifest\n"));
+		TRACE(_T("m_static_code_sign_no_manifest\n"));
+	}
+	else if (pCtrl == &m_list)
+	{
+		int item;
+		int sub_item;
+		CRect rlist;
+		m_list.GetWindowRect(rlist);
+		ScreenToClient(rlist);
 
-	TCHAR sfile[MAX_PATH];
+		pt.x -= rlist.left;
+		pt.y -= rlist.top;
+		m_list.hit_test(pt, item, sub_item, true);
+		if (item == 0)
+		{
+			DragQueryFile(hDropInfo, 0, sfile, MAX_PATH);
 
-	int count = DragQueryFile(hDropInfo, 0xffffffff, NULL, 0);
+			CString path = sfile;
+			theApp.WriteProfileString(m_product, _T("signtool path"), path);
+
+			m_list.set_text(0, col_value, path);
+
+			m_mt_path = path + _T("\\mt.exe");
+			m_signtool_path = path + _T("\\signtool.exe");
+			m_manifest_path = path + _T("\\manifest");
+
+			check_valid_condition();
+			return;
+		}
+	}
 
 	m_files.clear();
 
@@ -284,23 +294,203 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 	if (m_files.size())
 	{
 		if (m_action == action_codesign_manifest)
-			codesign_manifest(false);
-		else if (m_action == action_codesign_manifest)
-			codesign_manifest(true);
+		{
+			std::thread th0(&CKoinoToolsDlg::thread_auto_password_input, this);
+			th0.detach();
+
+			//codesign_manifest(true);
+			std::thread th1(&CKoinoToolsDlg::thread_codesign_manifest, this, true);
+			th1.detach();
+		}
+		else if (m_action == action_codesign_no_manifest)
+		{
+			std::thread th0(&CKoinoToolsDlg::thread_auto_password_input, this);
+			th0.detach();
+
+			//codesign_manifest(false);
+			std::thread th1(&CKoinoToolsDlg::thread_codesign_manifest, this, false);
+			th1.detach();
+		}
 	}
 
 	CDialogEx::OnDropFiles(hDropInfo);
 }
 
 //m_files 파일들을 대상으로 현재 선택된 액션을 취한다.
-void CKoinoToolsDlg::codesign_manifest(bool manifest)
+void CKoinoToolsDlg::thread_codesign_manifest(bool manifest)
 {
+	if (!check_valid_condition())
+		return;
 
+	trace(manifest);
+	trace(m_mt_path);
+	trace(m_signtool_path);
+	trace(m_manifest_path);
+
+	m_in_codesigning = true;
+
+	for (int i = 0; i < m_files.size(); i++)
+	{
+		CString cmd;
+		CString filename = get_part(m_files[i], fn_name);
+		CString manifest_file = m_manifest_path + _T("\\") + filename + _T(".manifest");
+		CString result;
+
+		m_rich.add(-1, _T("codesign start : %s\n"), filename);
+
+		//우선 해당 파일이 이미 codesign되어 있다면 오류가 발생하는 경우가 있으므로 delcert.exe로 지워준다.
+		m_rich.add(-1, _T("delcert : %s"), filename);
+		cmd.Format(_T("\"%s\\delcert.exe\" \"%s\""), m_signtool_path, m_files[i]);
+		result = run_process(cmd, true);
+		m_rich.add(blue, _T(" ok\n"));
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+
+
+		if (manifest)
+		{
+			if (!PathFileExists(manifest_file))
+			{
+				AfxMessageBox(_T("manifest 파일이 존재하지 않습니다.\n\n") + manifest_file);
+				return;
+			}
+
+			cmd.Format(_T("\"%s\" -manifest \"%s\" -outputresource:\"%s\""), m_mt_path, manifest_file, m_files[i]);
+			m_rich.add(-1, _T("manifest cmd : %s\n"), cmd);
+			result = run_process(cmd, true);
+		}
+
+		m_thread_auto_password_input_paused = false;
+		//Wait(10000);
+		cmd.Format(_T("\"%s\" sign /sha1 \"bf947f2204865e89c83799764aca1282e12d25a4\" /s my /t http://timestamp.digicert.com /fd sha1 /v \"%s\""),
+			m_signtool_path, m_files[i]);
+		m_rich.add(-1, _T("1phase codesign : %s\n"), cmd);
+		result = run_process(cmd, true);
+
+		while (FindWindowByCaption(_T("토큰 로그온"), true) != NULL)
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+
+		m_thread_auto_password_input_paused = false;
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+		cmd.Format(_T("\"%s\" sign /sha1 \"bf947f2204865e89c83799764aca1282e12d25a4\" /s my /tr http://timestamp.digicert.com /as /fd SHA256 /td sha256 /v \"%s\""),
+			m_signtool_path, m_files[i]);
+		m_rich.add(-1, _T("2phase codesign : %s\n"), cmd);
+		result = run_process(cmd, true);
+
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+
+	m_thread_auto_password_input = false;
+	while (!m_thread_auto_password_input_terminated)
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+
+	TRACE(_T("codeSign job finished.\n"));
+	m_rich.add(blue, _T("All files codesign completed\n"));
+
+	m_in_codesigning = false;
+}
+
+bool CKoinoToolsDlg::check_valid_condition()
+{
+	bool is_valid = true;
+
+	if (m_product.IsEmpty())
+	{
+		AfxMessageBox(_T("제품을 선택해주세요."));
+		return false;
+	}
+
+	if (m_mt_path.IsEmpty() || !PathFileExists(m_mt_path) ||
+		m_signtool_path.IsEmpty() || !PathFileExists(m_signtool_path) ||
+		m_manifest_path.IsEmpty() || !PathFileExists(m_manifest_path) || !PathIsDirectory(m_manifest_path))
+	{
+		m_list.set_text_color(0, -1, Gdiplus::Color::Crimson);
+		is_valid = false;
+	}
+	else
+	{
+		m_list.reset_text_color(0, -1);
+	}
+
+	return is_valid;
+}
+
+void CKoinoToolsDlg::thread_auto_password_input()
+{
+	m_thread_auto_password_input = true;
+	m_thread_auto_password_input_paused = true;
+
+	while (m_thread_auto_password_input)
+	{
+		if (m_thread_auto_password_input_paused)
+		{
+			TRACE(_T("m_thread_auto_password_input_paused...\n"));
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+			continue;
+		}
+		else
+			TRACE(_T("not paused.\n"));
+
+		CWnd* pWnd = NULL;
+		//CString finding_title = _T("KoinoTools");
+		CString finding_title = _T("토큰 로그온");
+		CRect rw;
+
+		//토큰 로그온 창이 나타날 때까지 대기
+		while ((pWnd = FindWindowByCaption(finding_title, true)) == NULL)
+		{
+			if (!m_thread_auto_password_input)
+				break;
+
+			TRACE(_T("finding \"%s\"...\n"), finding_title);
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+
+		if (!m_thread_auto_password_input)
+		{
+			TRACE(_T("m_thread_auto_password_input = false\n"));
+			break;
+		}
+
+		TRACE(_T("found \"%s\"...\n"), finding_title);
+
+		SetForegroundWindowForce(pWnd->m_hWnd, true);
+
+		pWnd->GetWindowRect(rw);
+
+		//암호 입력창으로 커서 이동
+		SetCursorPos(rw.left + 220, rw.top + 181);
+		//SetCursorPos(rw.left + 698, rw.top + 54);
+
+		//이미 입력된 암호가 있다면 지우기 위해 더블클릭 후 제거
+		sc_mouse_event(mouse_event_ldbclick);
+		keybd_event(VK_BACK, 0, 0, 0);
+
+		//지정된 암호를 입력한다.
+		CString pw = _T("Koino1807!");
+		m_key_input.input(pw);
+		while (m_key_input.get_key_count() > 0)
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+
+		//온전히 모두 입력될 때까지 기다려줘야 한다.
+		//std::this_thread::sleep_for(std::chrono::seconds(1));
+
+		//OK 버튼 클릭
+		sc_mouse_event(mouse_event_lclick, rw.left + 380, rw.top + 258);
+		//sc_mouse_event(mouse_event_lclick, rw.left + 380, rw.top + 258);
+		m_thread_auto_password_input_paused = true;
+	}
+
+	m_thread_auto_password_input = false;
+	m_thread_auto_password_input_paused = true;
+	m_thread_auto_password_input_terminated = true;
+	TRACE(_T("thread_auto_password_input() terminated.\n"));
 }
 
 void CKoinoToolsDlg::init_tree()
 {
-
+	m_tree.InsertItem(_T("AnySupport"));
+	m_tree.InsertItem(_T("LinkMeMine"));
+	m_tree.InsertItem(_T("HelpU"));
 }
 
 void CKoinoToolsDlg::init_list()
@@ -323,8 +513,71 @@ void CKoinoToolsDlg::init_list()
 	m_list.allow_edit_column(col_value, true);
 	m_list.load_column_width(&theApp, _T("list"));
 
-	int index = m_list.add_item(_T("mt path"));
-	//m_list.set_item_text(index, col_value, theApp.m_mt_path);
-	index = m_list.add_item(_T("signtool path"));
-	index = m_list.add_item(_T("manifest path"));
+	int index = m_list.add_item(_T("signtool path"));
+}
+
+void CKoinoToolsDlg::init_rich()
+{
+	m_rich.ShowTimeInfo(false);
+	m_rich.SetLineSpacing(1);
+}
+
+void CKoinoToolsDlg::OnTvnSelchangedTree(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	LPNMTREEVIEW pNMTreeView = reinterpret_cast<LPNMTREEVIEW>(pNMHDR);
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+
+	m_product = m_tree.get_selected_item_text(true);
+	if (m_product.IsEmpty())
+		return;
+
+	CString path = theApp.GetProfileString(m_product, _T("signtool path"), _T(""));
+	m_mt_path = path + _T("\\mt.exe");
+	m_signtool_path = path + _T("\\signtool.exe");
+	m_manifest_path = path + _T("\\manifest");
+
+	m_list.set_text(0, col_value, path);
+
+	check_valid_condition();
+
+	*pResult = 0;
+}
+
+void CKoinoToolsDlg::OnLvnEndLabelEditList(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	NMLVDISPINFO* pDispInfo = reinterpret_cast<NMLVDISPINFO*>(pNMHDR);
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+
+	CString product = m_tree.get_selected_item_text(true);
+	trace(product);
+
+	int item = m_list.get_recent_edit_item();
+	int subitem = m_list.get_recent_edit_subitem();
+
+	if (item == 0)
+	{
+		CString path = m_list.get_text(item, subitem);
+		m_mt_path = path + _T("%s\\mt.exe");
+		m_signtool_path = path + _T("%s\\signtool.exe");
+		m_manifest_path = path + _T("%s\\manifest");
+
+		theApp.WriteProfileString(product, _T("signtool path"), m_mt_path);
+	}
+	else if (item == 1)
+	{
+	}
+	else if (item == 2)
+	{
+	}
+
+	check_valid_condition();
+
+	*pResult = 0;
+}
+
+BOOL CKoinoToolsDlg::PreTranslateMessage(MSG* pMsg)
+{
+	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
+
+	return CDialogEx::PreTranslateMessage(pMsg);
 }

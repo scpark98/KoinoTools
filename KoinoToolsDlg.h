@@ -7,7 +7,10 @@
 #include "Common/device/keyboard/SCKeyInput/SCKeyInput.h"
 #include "Common/ResizeCtrl.h"
 #include "Common/CStatic/SCStatic/SCStatic.h"
+#include "Common/CTreeCtrl/SCTreeCtrl/SCTreeCtrl.h"
 #include "Common/CListCtrl/CVtListCtrlEx/VtListCtrlEx.h"
+#include "Common/CEdit/SCEdit/SCEdit.h"
+#include "Common/CEdit/RichEditCtrlEx/RichEditCtrlEx.h"
 
 // CKoinoToolsDlg 대화 상자
 class CKoinoToolsDlg : public CDialogEx
@@ -18,13 +21,18 @@ public:
 
 	enum TIMER_ID
 	{
-		timer_ = 0,
+		timer_release_block_input = 0,
 	};
 
 	CResizeCtrl				m_resize;
-	CSCKeyInput				m_ki;
+	CSCKeyInput				m_key_input;
 
 	std::deque<CString>		m_files;
+
+	CString					m_product;
+	CString					m_mt_path;
+	CString					m_signtool_path;
+	CString					m_manifest_path;
 
 	enum PROJECT_ID
 	{
@@ -44,8 +52,20 @@ public:
 		action_codesign_no_manifest,
 	};
 	int						m_action = action_no_action;
-	void					codesign_manifest(bool manifest);
+	void					thread_codesign_manifest(bool manifest);
+	bool					m_in_codesigning = false;
 
+	//product 선택, 각 항목 경로 및 존재여부 체크
+	bool					check_valid_condition();
+
+	//codesign이 시작되면 이 thread가 구동되고 "토큰 로그온" 창이 뜨면 자동으로 암호를 입력해 준다.
+	//n개의 파일에 대한 codesign이 모두 끝나면 thread가 종료된다.
+	void					thread_auto_password_input();
+	bool					m_thread_auto_password_input = false;				//thread가 구동중인지
+	bool					m_thread_auto_password_input_paused = true;			//thread를 일시정지 시킬지 여부
+	bool					m_thread_auto_password_input_terminated = true;		//thread가 정상적으로 종료되었는지 판별
+
+	void					thread_run_codesign(CString cmd);
 
 	void					init_tree();
 
@@ -55,6 +75,8 @@ public:
 		col_value,
 	};
 	void					init_list();
+
+	void					init_rich();
 
 
 // 대화 상자 데이터입니다.
@@ -85,4 +107,9 @@ public:
 	afx_msg void OnWindowPosChanged(WINDOWPOS* lpwndpos);
 	afx_msg void OnDropFiles(HDROP hDropInfo);
 	CVtListCtrlEx m_list;
+	CSCTreeCtrl m_tree;
+	afx_msg void OnTvnSelchangedTree(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnLvnEndLabelEditList(NMHDR* pNMHDR, LRESULT* pResult);
+	CRichEditCtrlEx m_rich;
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 };

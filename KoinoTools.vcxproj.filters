@@ -96,6 +96,9 @@
     <ClInclude Include="..\Common\device\keyboard\SCKeyInput\SCKeyInput.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="..\Common\CEdit\RichEditCtrlEx\RichEditCtrlEx.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="KoinoTools.cpp">
@@ -158,6 +161,9 @@
     <ClCompile Include="..\Common\device\keyboard\SCKeyInput\SCKeyInput.cpp">
       <Filter>Common</Filter>
     </ClCompile>
+    <ClCompile Include="..\Common\CEdit\RichEditCtrlEx\RichEditCtrlEx.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="KoinoTools.rc">
@@ -169,6 +175,9 @@
       <Filter>리소스 파일</Filter>
     </None>
     <None Include="readme.txt" />
+    <None Include="..\Common\CEdit\RichEditCtrlEx\RTF sample.rtf">
+      <Filter>Common</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\KoinoTools.ico">

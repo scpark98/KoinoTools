@@ -109,7 +109,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <UACExecutionLevel>AsInvoker</UACExecutionLevel>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -133,7 +133,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <UACExecutionLevel>AsInvoker</UACExecutionLevel>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -161,7 +161,7 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <UACExecutionLevel>AsInvoker</UACExecutionLevel>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -189,7 +189,7 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <UACExecutionLevel>AsInvoker</UACExecutionLevel>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -204,6 +204,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Common\CButton\GdiButton\GdiButton.h" />
+    <ClInclude Include="..\Common\CEdit\RichEditCtrlEx\RichEditCtrlEx.h" />
     <ClInclude Include="..\Common\CEdit\SCEdit\SCEdit.h" />
     <ClInclude Include="..\Common\CListCtrl\CVtListCtrlEx\HeaderCtrlEx.h" />
     <ClInclude Include="..\Common\CListCtrl\CVtListCtrlEx\list_data.h" />
@@ -230,6 +231,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Common\CButton\GdiButton\GdiButton.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\Common\CEdit\RichEditCtrlEx\RichEditCtrlEx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -344,6 +351,7 @@
     <ResourceCompile Include="KoinoTools.rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Common\CEdit\RichEditCtrlEx\RTF sample.rtf" />
     <None Include="readme.txt">
       <SubType>
       </SubType>
