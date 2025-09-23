@@ -30,9 +30,12 @@ public:
 	std::deque<CString>		m_files;
 
 	CString					m_product;
-	CString					m_mt_path;
-	CString					m_signtool_path;
-	CString					m_manifest_path;
+	//CString					m_last_edit_product;//LvnEndLabelEditList 주석 참조
+	CString					m_mt_path;            //mt.exe fullpath
+	CString					m_signtool_path;      //signtool.exe fullpath
+	CString					m_manifest_folder;    //manifest 폴더 fullpath
+	CString					m_fingerprint;
+	CString					m_password;
 
 	enum PROJECT_ID
 	{
@@ -52,7 +55,7 @@ public:
 		action_codesign_no_manifest,
 	};
 	int						m_action = action_no_action;
-	void					thread_codesign_manifest(bool manifest);
+	void					thread_codesign_manifest(bool apply_manifest);
 	bool					m_in_codesigning = false;
 
 	//product 선택, 각 항목 경로 및 존재여부 체크
@@ -73,6 +76,7 @@ public:
 	{
 		col_item = 0,
 		col_value,
+		col_desc,
 	};
 	void					init_list();
 
@@ -112,4 +116,10 @@ public:
 	afx_msg void OnLvnEndLabelEditList(NMHDR* pNMHDR, LRESULT* pResult);
 	CRichEditCtrlEx m_rich;
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
+	afx_msg void OnMenuTreeContext();
+	afx_msg void OnNMRClickTree(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnTvnEndLabelEditTree(NMHDR* pNMHDR, LRESULT* pResult);
+	CSCEdit m_edit1;
+	afx_msg void OnLvnBeginLabelEditList(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnTvnSelChangingTree(NMHDR* pNMHDR, LRESULT* pResult);
 };

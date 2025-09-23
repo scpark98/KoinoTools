@@ -67,6 +67,7 @@ void CKoinoToolsDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_LIST, m_list);
 	DDX_Control(pDX, IDC_TREE, m_tree);
 	DDX_Control(pDX, IDC_RICH, m_rich);
+	DDX_Control(pDX, IDC_EDIT1, m_edit1);
 }
 
 BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
@@ -80,6 +81,11 @@ BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
 	ON_WM_DROPFILES()
 	ON_NOTIFY(TVN_SELCHANGED, IDC_TREE, &CKoinoToolsDlg::OnTvnSelchangedTree)
 	ON_NOTIFY(LVN_ENDLABELEDIT, IDC_LIST, &CKoinoToolsDlg::OnLvnEndLabelEditList)
+	ON_COMMAND(ID_MENU_TREE_CONTEXT, &CKoinoToolsDlg::OnMenuTreeContext)
+	ON_NOTIFY(NM_RCLICK, IDC_TREE, &CKoinoToolsDlg::OnNMRClickTree)
+	ON_NOTIFY(TVN_ENDLABELEDIT, IDC_TREE, &CKoinoToolsDlg::OnTvnEndLabelEditTree)
+	ON_NOTIFY(LVN_BEGINLABELEDIT, IDC_LIST, &CKoinoToolsDlg::OnLvnBeginLabelEditList)
+	ON_NOTIFY(TVN_SELCHANGING, IDC_TREE, &CKoinoToolsDlg::OnTvnSelChangingTree)
 END_MESSAGE_MAP()
 
 
@@ -123,18 +129,20 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	m_static_code_sign_manifest.set_back_color(Gdiplus::Color::Ivory);
 	m_static_code_sign_manifest.set_round(10, Gdiplus::Color::Gray, get_sys_color(COLOR_3DFACE));
 	m_static_code_sign_manifest.set_font_size(10);
-	m_static_code_sign_manifest.set_tooltip_text(_T("LMMAgent.exe는 반드시 manifest를 포함할 것"));
+	m_static_code_sign_manifest.set_tooltip_text(_T("manifest를 적용하여 CodeSign할 파일들을 여기에 drag&drop 합니다.\n(주의 : LMMAgent.exe는 반드시 manifest를 포함하여 CodeSign 해야 함!)"));
 
 	m_static_code_sign_no_manifest.set_back_color(Gdiplus::Color::Ivory);
 	m_static_code_sign_no_manifest.set_round(10, Gdiplus::Color::Gray, get_sys_color(COLOR_3DFACE));
 	m_static_code_sign_no_manifest.set_font_size(10);
 	m_static_code_sign_no_manifest.set_round(10, Gdiplus::Color::Gray, get_sys_color(COLOR_3DFACE));
+	m_static_code_sign_no_manifest.set_tooltip_text(_T("manifest를 적용하지 않고 CodeSign할 파일들을 여기에 drag&drop 합니다.\n(주의 : LMMAgent.exe는 반드시 manifest를 포함하여 CodeSign 해야 함!)"));
 
 	init_tree();
 	init_list();
 	init_rich();
 
-	m_tree.select_item(_T("LinkMeMine"));
+	m_product = theApp.GetProfileString(_T("setting"), _T("recent product"), _T("LinkMeMine"));
+	m_tree.select_item(m_product);
 	//m_tree.iterate_tree_in_order();
 
 	RestoreWindowPosition(&theApp, this);
@@ -266,13 +274,12 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 			DragQueryFile(hDropInfo, 0, sfile, MAX_PATH);
 
 			CString path = sfile;
-			theApp.WriteProfileString(m_product, _T("signtool path"), path);
+			theApp.WriteProfileString(_T("product\\") + m_product, _T("signtool path"), path);
 
 			m_list.set_text(0, col_value, path);
 
 			m_mt_path = path + _T("\\mt.exe");
 			m_signtool_path = path + _T("\\signtool.exe");
-			m_manifest_path = path + _T("\\manifest");
 
 			check_valid_condition();
 			return;
@@ -295,6 +302,11 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 	{
 		if (m_action == action_codesign_manifest)
 		{
+			//처음엔 thread_auto_password_input()만 thread로 돌리고
+			//codesign_manifest()는 그냥 함수 호출로 실행했으나
+			//run_process(cmd, true);로 signtool.exe가 실행되면
+			//thread_auto_password_input() 또한 hold 상태가 되어버리므로
+			//둘 다 thread로 돌리도록 수정함.
 			std::thread th0(&CKoinoToolsDlg::thread_auto_password_input, this);
 			th0.detach();
 
@@ -317,15 +329,15 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 }
 
 //m_files 파일들을 대상으로 현재 선택된 액션을 취한다.
-void CKoinoToolsDlg::thread_codesign_manifest(bool manifest)
+void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 {
 	if (!check_valid_condition())
 		return;
 
-	trace(manifest);
+	trace(apply_manifest);
 	trace(m_mt_path);
 	trace(m_signtool_path);
-	trace(m_manifest_path);
+	trace(m_manifest_folder);
 
 	m_in_codesigning = true;
 
@@ -333,10 +345,10 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool manifest)
 	{
 		CString cmd;
 		CString filename = get_part(m_files[i], fn_name);
-		CString manifest_file = m_manifest_path + _T("\\") + filename + _T(".manifest");
+		CString manifest_file = m_manifest_folder + _T("\\") + filename + _T(".manifest");
 		CString result;
 
-		m_rich.add(-1, _T("codesign start : %s\n"), filename);
+		m_rich.add(-1, _T("codesign start : %s (%d/%d)...\n"), filename, i + 1, m_files.size());
 
 		//우선 해당 파일이 이미 codesign되어 있다면 오류가 발생하는 경우가 있으므로 delcert.exe로 지워준다.
 		m_rich.add(-1, _T("delcert : %s"), filename);
@@ -346,7 +358,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool manifest)
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 
 
-		if (manifest)
+		if (apply_manifest)
 		{
 			if (!PathFileExists(manifest_file))
 			{
@@ -361,9 +373,9 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool manifest)
 
 		m_thread_auto_password_input_paused = false;
 		//Wait(10000);
-		cmd.Format(_T("\"%s\" sign /sha1 \"bf947f2204865e89c83799764aca1282e12d25a4\" /s my /t http://timestamp.digicert.com /fd sha1 /v \"%s\""),
-			m_signtool_path, m_files[i]);
-		m_rich.add(-1, _T("1phase codesign : %s\n"), cmd);
+		cmd.Format(_T("\"%s\" sign /sha1 %s /s my /t http://timestamp.digicert.com /fd sha1 /v \"%s\""),
+			m_signtool_path, m_fingerprint, m_files[i]);
+		m_rich.add(-1, _T("#1 phase codesign : %s\n"), cmd);
 		result = run_process(cmd, true);
 
 		while (FindWindowByCaption(_T("토큰 로그온"), true) != NULL)
@@ -371,12 +383,14 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool manifest)
 
 		m_thread_auto_password_input_paused = false;
 		std::this_thread::sleep_for(std::chrono::seconds(1));
-		cmd.Format(_T("\"%s\" sign /sha1 \"bf947f2204865e89c83799764aca1282e12d25a4\" /s my /tr http://timestamp.digicert.com /as /fd SHA256 /td sha256 /v \"%s\""),
-			m_signtool_path, m_files[i]);
-		m_rich.add(-1, _T("2phase codesign : %s\n"), cmd);
+		cmd.Format(_T("\"%s\" sign /sha1 %s /s my /tr http://timestamp.digicert.com /as /fd SHA256 /td sha256 /v \"%s\""),
+			m_signtool_path, m_fingerprint, m_files[i]);
+		m_rich.add(-1, _T("#2 phase codesign : %s\n"), cmd);
 		result = run_process(cmd, true);
 
 		std::this_thread::sleep_for(std::chrono::seconds(1));
+
+		m_rich.add(royalblue, _T("%s codesign completed.\n\n"), filename);
 	}
 
 	m_thread_auto_password_input = false;
@@ -395,20 +409,52 @@ bool CKoinoToolsDlg::check_valid_condition()
 
 	if (m_product.IsEmpty())
 	{
-		AfxMessageBox(_T("제품을 선택해주세요."));
+		//AfxMessageBox(_T("제품을 선택해주세요."));
 		return false;
 	}
 
+	Gdiplus::Color invalid_color = Gdiplus::Color(255, 193, 173);
+
 	if (m_mt_path.IsEmpty() || !PathFileExists(m_mt_path) ||
-		m_signtool_path.IsEmpty() || !PathFileExists(m_signtool_path) ||
-		m_manifest_path.IsEmpty() || !PathFileExists(m_manifest_path) || !PathIsDirectory(m_manifest_path))
+		m_signtool_path.IsEmpty() || !PathFileExists(m_signtool_path))
 	{
-		m_list.set_text_color(0, -1, Gdiplus::Color::Crimson);
+		m_list.set_back_color(0, -1, invalid_color);
 		is_valid = false;
 	}
 	else
 	{
-		m_list.reset_text_color(0, -1);
+		m_list.reset_back_color(0, -1);
+	}
+
+	if (m_manifest_folder.IsEmpty() || !PathIsDirectory(m_manifest_folder))
+	{
+		m_list.set_back_color(1, -1, invalid_color);
+		is_valid = false;
+	}
+	else
+	{
+		m_list.reset_back_color(1, -1);
+	}
+
+	if (m_fingerprint.IsEmpty())
+	{
+		m_list.set_back_color(2, -1, invalid_color);
+		is_valid = false;
+	}
+	else
+	{
+		m_list.reset_back_color(2, -1);
+	}
+
+	if (m_password.IsEmpty())
+	{
+		//m_list.set_text_color(3, -1, Gdiplus::Color::Crimson);
+		m_list.set_back_color(3, -1, invalid_color);
+		is_valid = false;
+	}
+	else
+	{
+		m_list.reset_back_color(3, -1);
 	}
 
 	return is_valid;
@@ -466,8 +512,7 @@ void CKoinoToolsDlg::thread_auto_password_input()
 		keybd_event(VK_BACK, 0, 0, 0);
 
 		//지정된 암호를 입력한다.
-		CString pw = _T("Koino1807!");
-		m_key_input.input(pw);
+		m_key_input.input(m_password);
 		while (m_key_input.get_key_count() > 0)
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 
@@ -488,22 +533,38 @@ void CKoinoToolsDlg::thread_auto_password_input()
 
 void CKoinoToolsDlg::init_tree()
 {
-	m_tree.InsertItem(_T("AnySupport"));
-	m_tree.InsertItem(_T("LinkMeMine"));
-	m_tree.InsertItem(_T("HelpU"));
+	int count = theApp.GetProfileInt(_T("product"), _T("count"), 0);
+
+	//맨 처음 실행 시 count가 0이므로 기본 제품들로 채워준다.
+	if (count == 0)
+	{
+		count = 3;
+		theApp.WriteProfileInt(_T("product"), _T("count"), 3);
+		theApp.WriteProfileString(_T("product"), i2S(0), _T("LinkMeMine"));
+		theApp.WriteProfileString(_T("product"), i2S(1), _T("AnySupport"));
+		theApp.WriteProfileString(_T("product"), i2S(2), _T("HelpU"));
+	}
+
+	for (int i = 0; i < count; i++)
+	{
+		CString product = theApp.GetProfileString(_T("product"), std::to_wstring(i).c_str(), _T(""));
+		if (!product.IsEmpty())
+			m_tree.InsertItem(product);
+	}
+
 }
 
 void CKoinoToolsDlg::init_list()
 {
 	m_list.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | LVS_EX_GRIDLINES);
 
-	m_list.set_headings(_T("항목,100;경로,300;"));
-	m_list.set_font_size(9);
+	m_list.set_headings(_T("항목,100;경로,300;설명,300"));
 	//set_font_name(_T("맑은 고딕"));
 	//set_font_size(), set_font_name()을 호출하지 않고 set_header_height()을 호출하면
 	//CHeaderCtrlEx::OnLayout()에서 에러가 발생한다.
 	m_list.set_header_height(24);
 	m_list.set_line_height(21);
+	m_list.set_font_size(9);
 
 	//m_list.set_column_data_type(col_filesize, column_data_type_numeric);
 
@@ -511,9 +572,23 @@ void CKoinoToolsDlg::init_list()
 
 	m_list.allow_edit_column(col_item, false);
 	m_list.allow_edit_column(col_value, true);
+	m_list.allow_edit_column(col_desc, false);
+
 	m_list.load_column_width(&theApp, _T("list"));
 
 	int index = m_list.add_item(_T("signtool path"));
+	m_list.add_item(_T("manifest folder"));
+	m_list.add_item(_T("fingerprint"));
+	m_list.add_item(_T("password"));
+
+	m_list.set_text(0, col_desc, _T("mt.exe, signtool.exe가 위치한 폴더 경로"));
+	m_list.set_text(1, col_desc, _T("manifest 파일들이 위치한 폴더 경로"));
+	m_list.set_text(2, col_desc, _T("인증서 지문 데이터"));
+	m_list.set_text(3, col_desc, _T("CodeSign 암호"));
+
+	//CVtListCtrl에서 header height, line height를 주면 간혹 0번 항목이 헤더에 가려진 채로 시작되는 경우가 있다.
+	//뭔가 SetLayout()관련 처리가 부족한 듯 한데 우선 0번 항목을 선택시켜주면 이런 부작용이 나타나진 않는다.
+	m_list.select_item(0);
 }
 
 void CKoinoToolsDlg::init_rich()
@@ -526,19 +601,25 @@ void CKoinoToolsDlg::OnTvnSelchangedTree(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMTREEVIEW pNMTreeView = reinterpret_cast<LPNMTREEVIEW>(pNMHDR);
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-
 	m_product = m_tree.get_selected_item_text(true);
 	if (m_product.IsEmpty())
 		return;
 
-	CString path = theApp.GetProfileString(m_product, _T("signtool path"), _T(""));
+	CString path = theApp.GetProfileString(_T("product\\") + m_product, _T("signtool path"), _T(""));
 	m_mt_path = path + _T("\\mt.exe");
 	m_signtool_path = path + _T("\\signtool.exe");
-	m_manifest_path = path + _T("\\manifest");
+	m_manifest_folder = theApp.GetProfileString(_T("product\\") + m_product, _T("manifest folder"), _T(""));
+	m_fingerprint = theApp.GetProfileString(_T("product\\") + m_product, _T("fingerprint"), _T(""));
+	m_password = theApp.GetProfileString(_T("product\\") + m_product, _T("password"), _T(""));
 
 	m_list.set_text(0, col_value, path);
+	m_list.set_text(1, col_value, m_manifest_folder);
+	m_list.set_text(2, col_value, m_fingerprint);
+	m_list.set_text(3, col_value, m_password);
 
 	check_valid_condition();
+
+	theApp.WriteProfileString(_T("setting"), _T("recent product"), m_product);
 
 	*pResult = 0;
 }
@@ -547,9 +628,8 @@ void CKoinoToolsDlg::OnLvnEndLabelEditList(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	NMLVDISPINFO* pDispInfo = reinterpret_cast<NMLVDISPINFO*>(pNMHDR);
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-
-	CString product = m_tree.get_selected_item_text(true);
-	trace(product);
+	m_product = m_tree.get_selected_item_text(true);
+	trace(m_product);
 
 	int item = m_list.get_recent_edit_item();
 	int subitem = m_list.get_recent_edit_subitem();
@@ -557,17 +637,25 @@ void CKoinoToolsDlg::OnLvnEndLabelEditList(NMHDR* pNMHDR, LRESULT* pResult)
 	if (item == 0)
 	{
 		CString path = m_list.get_text(item, subitem);
-		m_mt_path = path + _T("%s\\mt.exe");
-		m_signtool_path = path + _T("%s\\signtool.exe");
-		m_manifest_path = path + _T("%s\\manifest");
+		m_mt_path = path + _T("\\mt.exe");
+		m_signtool_path = path + _T("\\signtool.exe");
 
-		theApp.WriteProfileString(product, _T("signtool path"), m_mt_path);
+		theApp.WriteProfileString(_T("product\\") + m_product, _T("signtool path"), path);
 	}
 	else if (item == 1)
 	{
+		m_manifest_folder = m_list.get_text(item, subitem);
+		theApp.WriteProfileString(_T("product\\") + m_product, _T("manifest folder"), m_manifest_folder);
 	}
 	else if (item == 2)
 	{
+		m_fingerprint = m_list.get_text(item, subitem);
+		theApp.WriteProfileString(_T("product\\") + m_product, _T("fingerprint"), m_fingerprint);
+	}
+	else if (item == 3)
+	{
+		m_password = m_list.get_text(item, subitem);
+		theApp.WriteProfileString(_T("product\\") + m_product, _T("password"), m_password);
 	}
 
 	check_valid_condition();
@@ -580,4 +668,68 @@ BOOL CKoinoToolsDlg::PreTranslateMessage(MSG* pMsg)
 	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
 
 	return CDialogEx::PreTranslateMessage(pMsg);
+}
+
+void CKoinoToolsDlg::OnMenuTreeContext()
+{
+	m_tree.add_new_item(NULL, _T("새 제품"), true, true);
+}
+
+void CKoinoToolsDlg::OnNMRClickTree(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	*pResult = 0;
+	return;
+
+
+	HTREEITEM hItem = NULL;// = pNMTreeView->itemNew.hItem;	//얻어오지 못한다.
+	CPoint pt;
+	::GetCursorPos(&pt);
+	m_tree.ScreenToClient(&pt);
+	hItem = m_tree.HitTest(pt);
+
+	if (!hItem)
+		return;
+
+	TRACE(_T("label = %s\n"), m_tree.GetItemText(hItem));
+
+	//우클릭을 하면 일단 해당 노드를 선택상태로 만들어줘야 한다.
+	m_tree.SelectItem(hItem);
+
+	CMenu menu;
+	menu.LoadMenu(IDR_MENU_TREE);
+
+	CMenu* pMenu = menu.GetSubMenu(0);
+
+	::GetCursorPos(&pt);
+	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, pt.x, pt.y, this);
+}
+
+void CKoinoToolsDlg::OnTvnEndLabelEditTree(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	LPNMTVDISPINFO pTVDispInfo = reinterpret_cast<LPNMTVDISPINFO>(pNMHDR);
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	TRACE(_T("%s\n"), m_tree.get_edit_new_text());
+	*pResult = 0;
+}
+
+void CKoinoToolsDlg::OnLvnBeginLabelEditList(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	NMLVDISPINFO* pDispInfo = reinterpret_cast<NMLVDISPINFO*>(pNMHDR);
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	*pResult = 0;
+}
+
+void CKoinoToolsDlg::OnTvnSelChangingTree(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	LPNMTREEVIEW pNMTreeView = reinterpret_cast<LPNMTREEVIEW>(pNMHDR);
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+
+	//리스트 항목을 편집을 완료하지 않고 트리의 제품 항목을 선택하면
+	//OnTvnSelChangedTree() 함수에서 새로 선택된 트리 항목이 선택되고
+	//편집된 항목의 값이 새 제품의 필드에 들어가는 오류가 발생한다.
+	//따라서 트리의 선택이 바뀌기 전에 리스트의 편집을 종료시켜 줘야 한다.
+	m_list.edit_end();
+	Wait(10);
+	*pResult = 0;
 }
