@@ -126,7 +126,7 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	m_resize.Add(IDC_LIST, 0, 0, 100, 0);
 	m_resize.Add(IDC_RICH, 0, 0, 100, 100);
 
-	m_static_code_sign_manifest.set_back_color(Gdiplus::Color::Ivory);
+	m_static_code_sign_manifest.set_back_color(Gdiplus::Color::AntiqueWhite);
 	m_static_code_sign_manifest.set_round(10, Gdiplus::Color::Gray, get_sys_color(COLOR_3DFACE));
 	m_static_code_sign_manifest.set_font_size(10);
 	m_static_code_sign_manifest.set_tooltip_text(_T("manifest를 적용하여 CodeSign할 파일들을 여기에 drag&drop 합니다.\n(주의 : LMMAgent.exe는 반드시 manifest를 포함하여 CodeSign 해야 함!)"));
@@ -145,6 +145,7 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	m_tree.select_item(m_product);
 	//m_tree.iterate_tree_in_order();
 
+	Wait(10);
 	RestoreWindowPosition(&theApp, this);
 
 	DragAcceptFiles();
@@ -340,6 +341,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 	trace(m_manifest_folder);
 
 	m_in_codesigning = true;
+	bool error_occured = false;
 
 	for (int i = 0; i < m_files.size(); i++)
 	{
@@ -349,6 +351,15 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		CString result;
 
 		m_rich.add(-1, _T("codesign start : %s (%d/%d)...\n"), filename, i + 1, m_files.size());
+
+		//파일이 열려있으면 코드사인이 실패하므로 에러로 처리한다.
+		HWND hWnd = get_hwnd_by_exe_file(m_files[i]);
+		if (hWnd)
+		{
+			error_occured = true;
+			m_rich.add(red, _T("파일이 사용중이므로 코드사인 할 수 없습니다.\n"));
+			break;
+		}
 
 		//우선 해당 파일이 이미 codesign되어 있다면 오류가 발생하는 경우가 있으므로 delcert.exe로 지워준다.
 		m_rich.add(-1, _T("delcert : %s"), filename);
@@ -379,7 +390,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		result = run_process(cmd, true);
 
 		while (FindWindowByCaption(_T("토큰 로그온"), true) != NULL)
-			std::this_thread::sleep_for(std::chrono::seconds(1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 		m_thread_auto_password_input_paused = false;
 		std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -388,17 +399,26 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		m_rich.add(-1, _T("#2 phase codesign : %s\n"), cmd);
 		result = run_process(cmd, true);
 
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+		//std::this_thread::sleep_for(std::chrono::seconds(1));
+		while (FindWindowByCaption(_T("토큰 로그온"), true) != NULL)
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-		m_rich.add(royalblue, _T("%s codesign completed.\n\n"), filename);
+		m_rich.add(royalblue, _T("%s codesign completed.\n"), filename);
 	}
 
 	m_thread_auto_password_input = false;
 	while (!m_thread_auto_password_input_terminated)
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 
-	TRACE(_T("codeSign job finished.\n"));
-	m_rich.add(blue, _T("All files codesign completed\n"));
+	if (error_occured)
+	{
+		m_rich.add(red, _T("All codesign job cancelled.\n"));
+	}
+	else
+	{
+		TRACE(_T("codeSign job finished.\n"));
+		m_rich.add(blue, _T("All files codesign completed.\n\n"));
+	}
 
 	m_in_codesigning = false;
 }
@@ -413,48 +433,48 @@ bool CKoinoToolsDlg::check_valid_condition()
 		return false;
 	}
 
-	Gdiplus::Color invalid_color = Gdiplus::Color(255, 193, 173);
+	Gdiplus::Color invalid_color = Gdiplus::Color(255, 64, 64);
 
 	if (m_mt_path.IsEmpty() || !PathFileExists(m_mt_path) ||
 		m_signtool_path.IsEmpty() || !PathFileExists(m_signtool_path))
 	{
-		m_list.set_back_color(0, -1, invalid_color);
+		m_list.set_text_color(0, -1, invalid_color);
 		is_valid = false;
 	}
 	else
 	{
-		m_list.reset_back_color(0, -1);
+		m_list.reset_text_color(0, -1);
 	}
 
 	if (m_manifest_folder.IsEmpty() || !PathIsDirectory(m_manifest_folder))
 	{
-		m_list.set_back_color(1, -1, invalid_color);
+		m_list.set_text_color(1, -1, invalid_color);
 		is_valid = false;
 	}
 	else
 	{
-		m_list.reset_back_color(1, -1);
+		m_list.reset_text_color(1, -1);
 	}
 
 	if (m_fingerprint.IsEmpty())
 	{
-		m_list.set_back_color(2, -1, invalid_color);
+		m_list.set_text_color(2, -1, invalid_color);
 		is_valid = false;
 	}
 	else
 	{
-		m_list.reset_back_color(2, -1);
+		m_list.reset_text_color(2, -1);
 	}
 
 	if (m_password.IsEmpty())
 	{
 		//m_list.set_text_color(3, -1, Gdiplus::Color::Crimson);
-		m_list.set_back_color(3, -1, invalid_color);
+		m_list.set_text_color(3, -1, invalid_color);
 		is_valid = false;
 	}
 	else
 	{
-		m_list.reset_back_color(3, -1);
+		m_list.reset_text_color(3, -1);
 	}
 
 	return is_valid;
@@ -514,13 +534,14 @@ void CKoinoToolsDlg::thread_auto_password_input()
 		//지정된 암호를 입력한다.
 		m_key_input.input(m_password);
 		while (m_key_input.get_key_count() > 0)
-			std::this_thread::sleep_for(std::chrono::seconds(1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 		//온전히 모두 입력될 때까지 기다려줘야 한다.
 		//std::this_thread::sleep_for(std::chrono::seconds(1));
 
 		//OK 버튼 클릭
-		sc_mouse_event(mouse_event_lclick, rw.left + 380, rw.top + 258);
+		//windows10, windows11 약간 UI가 달라서 ok버튼 위치가 다를 수 있다. Enter키로 처리한다.
+		keybd_event(VK_RETURN, 0, 0, 0);
 		//sc_mouse_event(mouse_event_lclick, rw.left + 380, rw.top + 258);
 		m_thread_auto_password_input_paused = true;
 	}
@@ -563,7 +584,7 @@ void CKoinoToolsDlg::init_list()
 	//set_font_size(), set_font_name()을 호출하지 않고 set_header_height()을 호출하면
 	//CHeaderCtrlEx::OnLayout()에서 에러가 발생한다.
 	m_list.set_header_height(24);
-	m_list.set_line_height(21);
+	m_list.set_line_height(22);
 	m_list.set_font_size(9);
 
 	//m_list.set_column_data_type(col_filesize, column_data_type_numeric);
@@ -585,6 +606,8 @@ void CKoinoToolsDlg::init_list()
 	m_list.set_text(1, col_desc, _T("manifest 파일들이 위치한 폴더 경로"));
 	m_list.set_text(2, col_desc, _T("인증서 지문 데이터"));
 	m_list.set_text(3, col_desc, _T("CodeSign 암호"));
+
+	m_list.set_default_text_color(Gdiplus::Color::DimGray);
 
 	//CVtListCtrl에서 header height, line height를 주면 간혹 0번 항목이 헤더에 가려진 채로 시작되는 경우가 있다.
 	//뭔가 SetLayout()관련 처리가 부족한 듯 한데 우선 0번 항목을 선택시켜주면 이런 부작용이 나타나진 않는다.
