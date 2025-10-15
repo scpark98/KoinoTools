@@ -122,4 +122,6 @@ public:
 	CSCEdit m_edit1;
 	afx_msg void OnLvnBeginLabelEditList(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnTvnSelChangingTree(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnMenuLmmSDSEncrypt();
+	afx_msg void OnContextMenu(CWnd* /*pWnd*/, CPoint /*point*/);
 };

@@ -10,6 +10,8 @@
 
 #include <thread>
 #include "Common/Functions.h"
+#include "Common/system/CCmdLine/CmdLine.h"
+#include "SDSEncryptDlg.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -86,6 +88,8 @@ BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
 	ON_NOTIFY(TVN_ENDLABELEDIT, IDC_TREE, &CKoinoToolsDlg::OnTvnEndLabelEditTree)
 	ON_NOTIFY(LVN_BEGINLABELEDIT, IDC_LIST, &CKoinoToolsDlg::OnLvnBeginLabelEditList)
 	ON_NOTIFY(TVN_SELCHANGING, IDC_TREE, &CKoinoToolsDlg::OnTvnSelChangingTree)
+	ON_COMMAND(ID_MENU_LMM_SDS_ENCRYPT, &CKoinoToolsDlg::OnMenuLmmSDSEncrypt)
+	ON_WM_CONTEXTMENU()
 END_MESSAGE_MAP()
 
 
@@ -149,6 +153,20 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	RestoreWindowPosition(&theApp, this);
 
 	DragAcceptFiles();
+
+	//CCmdLine test code
+	/*
+	CString param = _T("-i 70.117.80.127 -p 7002 -sn 171675 -fr 1572807 -id 1 -t 0 -rh 136902 -rd 10001 -gi None -gp 0 -pn \"구미 -&nbsp PC\" -pi 70.117.80.120 -un inoh.seo -ui 70.117.129.85 -tn 0 -p2p 1 -p2pi 70.117.80.120 -p2pp 7002 -sizex 0 -sizey 0 -wm 1 -wms \"water -mark -str\" -dm 0 -ra 1");
+	CCmdLine cmdLine(param);
+
+	for (auto arg : cmdLine)
+	{
+		TRACE(_T("arg.first = %s\n"), arg.first);
+
+		for (int i = 0; i < arg.second.m_strings.size(); i++)
+			TRACE(_T("m_strings[%d] = %s\n"), i, arg.second.m_strings[i]);
+	}
+	*/
 
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
@@ -353,6 +371,8 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		m_rich.add(-1, _T("codesign start : %s (%d/%d)...\n"), filename, i + 1, m_files.size());
 
 		//파일이 열려있으면 코드사인이 실패하므로 에러로 처리한다.
+		//_taccess()를 써봤으나 0이 리턴되고(사용중이 아니라고 판별)
+		//_tfopen_s()을 써도 "r"이 가능하다고 판별되어 실행 프로세스인지를 검사하도록 수정함.
 		HWND hWnd = get_hwnd_by_exe_file(m_files[i]);
 		if (hWnd)
 		{
@@ -595,7 +615,7 @@ void CKoinoToolsDlg::init_list()
 	m_list.allow_edit_column(col_value, true);
 	m_list.allow_edit_column(col_desc, false);
 
-	m_list.load_column_width(&theApp, _T("list"));
+	m_list.restore_column_width(&theApp, _T("list"));
 
 	int index = m_list.add_item(_T("signtool path"));
 	m_list.add_item(_T("manifest folder"));
@@ -755,4 +775,21 @@ void CKoinoToolsDlg::OnTvnSelChangingTree(NMHDR* pNMHDR, LRESULT* pResult)
 	m_list.edit_end();
 	Wait(10);
 	*pResult = 0;
+}
+
+void CKoinoToolsDlg::OnContextMenu(CWnd* pWnd, CPoint point)
+{
+	CMenu menu;
+	CMenu* pMenu = NULL;
+
+	menu.LoadMenu(IDR_MENU_CONTEXT);
+	pMenu = menu.GetSubMenu(0);
+
+	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, this);
+}
+
+void CKoinoToolsDlg::OnMenuLmmSDSEncrypt()
+{
+	CSDSEncryptDlg dlg;
+	dlg.DoModal();
 }
