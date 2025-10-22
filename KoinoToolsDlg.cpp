@@ -157,7 +157,7 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	m_vert_splitter.AddToTopOrLeftCtrls(IDC_TREE, min_size);
 	m_vert_splitter.AddToBottomOrRightCtrls(IDC_STATIC_CODE_SIGN_NO_MANIFEST, 0, 0, SPF_LEFT);
 	m_vert_splitter.AddToBottomOrRightCtrls(IDC_STATIC_CODE_SIGN_MANIFEST, 0, 0, SPF_LEFT);
-	m_vert_splitter.AddToBottomOrRightCtrls(IDC_LIST);
+	m_vert_splitter.AddToBottomOrRightCtrls(IDC_LIST, 320);
 	m_vert_splitter.AddToBottomOrRightCtrls(IDC_RICH);
 	//m_vert_splitter.AddToBottomOrRightCtrls(IDC_CHECK);
 
