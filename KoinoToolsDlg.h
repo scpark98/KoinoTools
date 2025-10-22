@@ -30,6 +30,8 @@ public:
 	std::deque<CString>		m_files;
 
 	CString					m_product;
+	CString					m_reg_product_root = _T("Software\\Koino\\KoinoTools\\product");
+
 	//CString					m_last_edit_product;//LvnEndLabelEditList 주석 참조
 	CString					m_mt_path;            //mt.exe fullpath
 	CString					m_signtool_path;      //signtool.exe fullpath
@@ -116,7 +118,6 @@ public:
 	afx_msg void OnLvnEndLabelEditList(NMHDR* pNMHDR, LRESULT* pResult);
 	CRichEditCtrlEx m_rich;
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
-	afx_msg void OnMenuTreeContext();
 	afx_msg void OnNMRClickTree(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnTvnEndLabelEditTree(NMHDR* pNMHDR, LRESULT* pResult);
 	CSCEdit m_edit1;
@@ -124,4 +125,7 @@ public:
 	afx_msg void OnTvnSelChangingTree(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnMenuLmmSDSEncrypt();
 	afx_msg void OnContextMenu(CWnd* /*pWnd*/, CPoint /*point*/);
+	afx_msg void OnMenuTreeDelete();
+	afx_msg void OnMenuTreeNewItem();
+	afx_msg void OnMenuTreeRename();
 };

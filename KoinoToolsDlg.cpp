@@ -83,13 +83,15 @@ BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
 	ON_WM_DROPFILES()
 	ON_NOTIFY(TVN_SELCHANGED, IDC_TREE, &CKoinoToolsDlg::OnTvnSelchangedTree)
 	ON_NOTIFY(LVN_ENDLABELEDIT, IDC_LIST, &CKoinoToolsDlg::OnLvnEndLabelEditList)
-	ON_COMMAND(ID_MENU_TREE_CONTEXT, &CKoinoToolsDlg::OnMenuTreeContext)
 	ON_NOTIFY(NM_RCLICK, IDC_TREE, &CKoinoToolsDlg::OnNMRClickTree)
 	ON_NOTIFY(TVN_ENDLABELEDIT, IDC_TREE, &CKoinoToolsDlg::OnTvnEndLabelEditTree)
 	ON_NOTIFY(LVN_BEGINLABELEDIT, IDC_LIST, &CKoinoToolsDlg::OnLvnBeginLabelEditList)
 	ON_NOTIFY(TVN_SELCHANGING, IDC_TREE, &CKoinoToolsDlg::OnTvnSelChangingTree)
 	ON_COMMAND(ID_MENU_LMM_SDS_ENCRYPT, &CKoinoToolsDlg::OnMenuLmmSDSEncrypt)
 	ON_WM_CONTEXTMENU()
+	ON_COMMAND(ID_MENU_TREE_DELETE, &CKoinoToolsDlg::OnMenuTreeDelete)
+	ON_COMMAND(ID_MENU_TREE_NEW_ITEM, &CKoinoToolsDlg::OnMenuTreeNewItem)
+	ON_COMMAND(ID_MENU_TREE_RENAME, &CKoinoToolsDlg::OnMenuTreeRename)
 END_MESSAGE_MAP()
 
 
@@ -130,16 +132,15 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	m_resize.Add(IDC_LIST, 0, 0, 100, 0);
 	m_resize.Add(IDC_RICH, 0, 0, 100, 100);
 
+	m_static_code_sign_no_manifest.set_back_color(Gdiplus::Color::Ivory);
+	m_static_code_sign_no_manifest.set_round(8, Gdiplus::Color::RoyalBlue, get_sys_color(COLOR_3DFACE));
+	m_static_code_sign_no_manifest.set_font_size(10);
+	m_static_code_sign_no_manifest.set_tooltip_text(_T("manifest를 적용하지 않고 CodeSign할 파일들을 여기에 drag&drop 합니다.\n(주의 : LMMAgent.exe는 반드시 manifest를 포함하여 CodeSign 해야 함!)"));
+
 	m_static_code_sign_manifest.set_back_color(Gdiplus::Color::AntiqueWhite);
-	m_static_code_sign_manifest.set_round(10, Gdiplus::Color::Gray, get_sys_color(COLOR_3DFACE));
+	m_static_code_sign_manifest.set_round(8, Gdiplus::Color::IndianRed, get_sys_color(COLOR_3DFACE));
 	m_static_code_sign_manifest.set_font_size(10);
 	m_static_code_sign_manifest.set_tooltip_text(_T("manifest를 적용하여 CodeSign할 파일들을 여기에 drag&drop 합니다.\n(주의 : LMMAgent.exe는 반드시 manifest를 포함하여 CodeSign 해야 함!)"));
-
-	m_static_code_sign_no_manifest.set_back_color(Gdiplus::Color::Ivory);
-	m_static_code_sign_no_manifest.set_round(10, Gdiplus::Color::Gray, get_sys_color(COLOR_3DFACE));
-	m_static_code_sign_no_manifest.set_font_size(10);
-	m_static_code_sign_no_manifest.set_round(10, Gdiplus::Color::Gray, get_sys_color(COLOR_3DFACE));
-	m_static_code_sign_no_manifest.set_tooltip_text(_T("manifest를 적용하지 않고 CodeSign할 파일들을 여기에 drag&drop 합니다.\n(주의 : LMMAgent.exe는 반드시 manifest를 포함하여 CodeSign 해야 함!)"));
 
 	init_tree();
 	init_list();
@@ -153,6 +154,11 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	RestoreWindowPosition(&theApp, this);
 
 	DragAcceptFiles();
+
+	CString caption;
+	caption.Format(_T("KoinoTools (Ver %s)"), get_file_property());
+	SetWindowText(caption);
+
 
 	//CCmdLine test code
 	/*
@@ -238,6 +244,50 @@ void CKoinoToolsDlg::OnBnClickedCancel()
 {
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
 	m_list.save_column_width(&theApp, _T("list"));
+
+	//프로그램을 종료할 때 실행파일 위치에 레지스트리 파일로도 항상 백업한다.
+	//reg.exe를 run_process()로 호출하면 간혹 종료 시 무한 waiting이 되는 현상이 발생한다.
+	//ShellExecute()로 실행하니 그런 현상은 발생하지 않는다.
+	CString param;
+
+	DeleteFile(get_exe_directory() + _T("\\KoinoTools.reg"));
+	param.Format(_T("export \"HKCU\\Software\\Koino\\KoinoTools\" \"%s\\KoinoTools.reg\""), get_exe_directory());
+	//run_process(cmd);
+	ShellExecute(m_hWnd, _T("open"), _T("reg.exe"), param, NULL, SW_SHOWNORMAL);
+
+	/* RegSaveKeyEx()는 binary 형태로 저장된다. 아마도 RegLoadKeyEx()와 같은 함수와 같이 사용해야하는 듯 하다.
+	HKEY hKey;
+	LONG res;
+
+	res = RegOpenKeyEx(HKEY_CURRENT_USER, _T("Software\\Koino\\KoinoTools"), 0, KEY_ALL_ACCESS, &hKey);
+	if (res == ERROR_SUCCESS)
+	{
+		//RegSaveKeyEx()를 하기 위해서는 반드시 previlege를 조정해줘야 한다.
+		bool set_result = set_privilege(SE_BACKUP_NAME, TRUE);
+		set_result = set_privilege(SE_RESTORE_NAME, TRUE);
+
+		//결과파일이 존재하면 183 에러가 발생한다. 반드시 삭제시키고 저장해야 한다.
+		DeleteFile(get_exe_directory() + _T("\\KoinoTools.reg"));
+
+		res = RegSaveKey(hKey, get_exe_directory() + _T("\\KoinoTools.reg"), NULL);// , REG_NO_COMPRESSION);
+		if (res == ERROR_SUCCESS)
+		{
+			RegCloseKey(hKey);
+			m_rich.add(blue, _T("success exporting registry info."));
+		}
+		else
+		{
+			m_rich.add(red, _T("fail to RegSaveKeyEx() for save registry."));
+			m_rich.add(red, _T("%s"), get_error_str(res));
+		}
+	}
+	else
+	{
+		m_rich.add(red, _T("fail to RegOpenKeyEx() for export registry."));
+	}
+
+	Wait(1000);
+	*/
 
 	CDialogEx::OnCancel();
 }
@@ -574,25 +624,40 @@ void CKoinoToolsDlg::thread_auto_password_input()
 
 void CKoinoToolsDlg::init_tree()
 {
-	int count = theApp.GetProfileInt(_T("product"), _T("count"), 0);
+	std::deque<CString> enum_subkeys;
+	enum_registry_subkeys(HKEY_CURRENT_USER, m_reg_product_root, enum_subkeys);
 
-	//맨 처음 실행 시 count가 0이므로 기본 제품들로 채워준다.
-	if (count == 0)
+	for (auto subkey : enum_subkeys)
 	{
-		count = 3;
-		theApp.WriteProfileInt(_T("product"), _T("count"), 3);
-		theApp.WriteProfileString(_T("product"), i2S(0), _T("LinkMeMine"));
-		theApp.WriteProfileString(_T("product"), i2S(1), _T("AnySupport"));
-		theApp.WriteProfileString(_T("product"), i2S(2), _T("HelpU"));
+		subkey.Replace(m_reg_product_root + _T("\\"), _T(""));
+		trace(subkey);
+
+		std::deque<CString> token;
+		get_token_string(subkey, token, _T("\\"), false);
+
+		if (token.size() == 1)
+		{
+			m_tree.InsertItem(token[0]);
+		}
+		else
+		{
+			HTREEITEM hItem = NULL;
+
+			for (int i = 0; i < token.size(); i++)
+			{
+				if (i < token.size() - 1)
+				{
+					hItem = m_tree.find_item(token[i], hItem);
+				}
+				else
+				{
+					m_tree.InsertItem(token[i], 0, 0, hItem);
+				}
+			}
+		}
 	}
 
-	for (int i = 0; i < count; i++)
-	{
-		CString product = theApp.GetProfileString(_T("product"), std::to_wstring(i).c_str(), _T(""));
-		if (!product.IsEmpty())
-			m_tree.InsertItem(product);
-	}
-
+	m_tree.expand_all();
 }
 
 void CKoinoToolsDlg::init_list()
@@ -709,21 +774,69 @@ void CKoinoToolsDlg::OnLvnEndLabelEditList(NMHDR* pNMHDR, LRESULT* pResult)
 BOOL CKoinoToolsDlg::PreTranslateMessage(MSG* pMsg)
 {
 	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
+	if (pMsg->message == WM_KEYDOWN)
+	{
+		switch (pMsg->wParam)
+		{
+			case VK_F2:
+				if (GetFocus() == &m_tree)
+				{
+					m_tree.edit_item();
+					return TRUE;
+				}
+				else if (GetFocus() == &m_list)
+				{
+					m_list.edit_item();
+					return TRUE;
+				}
+				break;
+			case VK_DELETE:
+				if (GetFocus() == &m_tree)
+				{
+					OnMenuTreeDelete();
+					return TRUE;
+				}
+				break;
+		}
+	}
 
 	return CDialogEx::PreTranslateMessage(pMsg);
 }
 
-void CKoinoToolsDlg::OnMenuTreeContext()
+void CKoinoToolsDlg::OnMenuTreeNewItem()
 {
-	m_tree.add_new_item(NULL, _T("새 제품"), true, true);
+	CString new_label = m_tree.add_new_item(NULL, _T("새 제품"), true, true);
+
+	m_product = m_tree.get_selected_item_text(true);
+	trace(m_product);
+
+	CString subkey;
+
+	subkey.Format(_T("%s\\%s"), m_reg_product_root, m_product);
+
+	HKEY hKey;
+	LONG res;
+
+	res = RegCreateKeyEx(HKEY_CURRENT_USER, subkey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &hKey, NULL);
+	RegCloseKey(hKey);
+}
+
+
+void CKoinoToolsDlg::OnContextMenu(CWnd* pWnd, CPoint point)
+{
+	CMenu menu;
+	CMenu* pMenu = NULL;
+
+	menu.LoadMenu(IDR_MENU_CONTEXT);
+	pMenu = menu.GetSubMenu(0);
+
+	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, this);
 }
 
 void CKoinoToolsDlg::OnNMRClickTree(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	*pResult = 0;
-	return;
-
+	*pResult = 1;
 
 	HTREEITEM hItem = NULL;// = pNMTreeView->itemNew.hItem;	//얻어오지 못한다.
 	CPoint pt;
@@ -731,18 +844,25 @@ void CKoinoToolsDlg::OnNMRClickTree(NMHDR* pNMHDR, LRESULT* pResult)
 	m_tree.ScreenToClient(&pt);
 	hItem = m_tree.HitTest(pt);
 
-	if (!hItem)
-		return;
+	if (hItem)
+	{
+		TRACE(_T("label = %s\n"), m_tree.GetItemText(hItem));
 
-	TRACE(_T("label = %s\n"), m_tree.GetItemText(hItem));
-
-	//우클릭을 하면 일단 해당 노드를 선택상태로 만들어줘야 한다.
-	m_tree.SelectItem(hItem);
+		//우클릭을 하면 일단 해당 노드를 선택상태로 만들어줘야 한다.
+		m_tree.SelectItem(hItem);
+	}
+	else
+	{
+		m_tree.SelectItem(NULL);
+	}
 
 	CMenu menu;
 	menu.LoadMenu(IDR_MENU_TREE);
 
 	CMenu* pMenu = menu.GetSubMenu(0);
+
+	menu.EnableMenuItem(ID_MENU_TREE_RENAME, hItem ? MF_ENABLED : MF_DISABLED);
+	menu.EnableMenuItem(ID_MENU_TREE_DELETE, hItem ? MF_ENABLED : MF_DISABLED);
 
 	::GetCursorPos(&pt);
 	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, pt.x, pt.y, this);
@@ -752,7 +872,46 @@ void CKoinoToolsDlg::OnTvnEndLabelEditTree(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMTVDISPINFO pTVDispInfo = reinterpret_cast<LPNMTVDISPINFO>(pNMHDR);
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	TRACE(_T("%s\n"), m_tree.get_edit_new_text());
+
+	CString old_label = m_tree.get_edit_old_text();
+	CString new_label = m_tree.get_edit_new_text();
+	trace(new_label);
+
+	if (old_label == new_label)
+		return;
+
+	m_product = m_tree.get_selected_item_text(true);
+	m_product = m_product.Left(m_product.ReverseFind('\\'));
+	trace(m_product);
+
+	CString subkey_old;
+	CString subkey_new;
+
+	subkey_old.Format(_T("%s\\%s\\%s"), m_reg_product_root, m_product, old_label);
+	subkey_new.Format(_T("%s\\%s\\%s"), m_reg_product_root, m_product, new_label);
+
+	HKEY hKey;
+	LONG res;
+
+	if (is_exist_registry_key(HKEY_CURRENT_USER, subkey_old))
+	{
+		res = RegOpenKeyEx(HKEY_CURRENT_USER, subkey_old, 0, KEY_ALL_ACCESS, &hKey);
+		if (res == ERROR_SUCCESS)
+		{
+			//RegRenameKey()는 공식적으로 지원하지 않으며 에러가 발생한다.
+			//res = RegRenameKey(hKey, old_label, new_label);
+
+			HKEY hKey_dst;
+			res = RegCreateKeyEx(HKEY_CURRENT_USER, subkey_new, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &hKey_dst, NULL);
+			res = RegCopyTree(hKey, nullptr, hKey_dst);
+			res = RegDeleteTree(HKEY_CURRENT_USER, subkey_old);
+			RegCloseKey(hKey_dst);
+			RegCloseKey(hKey);
+
+			theApp.WriteProfileString(_T("setting"), _T("recent product"), m_product + _T("\\") + new_label);
+		}
+	}
+
 	*pResult = 0;
 }
 
@@ -777,19 +936,31 @@ void CKoinoToolsDlg::OnTvnSelChangingTree(NMHDR* pNMHDR, LRESULT* pResult)
 	*pResult = 0;
 }
 
-void CKoinoToolsDlg::OnContextMenu(CWnd* pWnd, CPoint point)
-{
-	CMenu menu;
-	CMenu* pMenu = NULL;
-
-	menu.LoadMenu(IDR_MENU_CONTEXT);
-	pMenu = menu.GetSubMenu(0);
-
-	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, this);
-}
-
 void CKoinoToolsDlg::OnMenuLmmSDSEncrypt()
 {
 	CSDSEncryptDlg dlg;
 	dlg.DoModal();
+}
+
+void CKoinoToolsDlg::OnMenuTreeDelete()
+{
+	CString label = m_tree.get_selected_item_text();
+	int res = AfxMessageBox(label + _T("\n\n위 항목 및 하위 항목들을 모두 삭제합니다.\n항목을 삭제하면 되돌릴 수 없습니다."), MB_OKCANCEL);
+
+	if (res == IDCANCEL)
+		return;
+
+	CString subkey;
+
+	label = m_tree.get_selected_item_text(true);
+	subkey.Format(_T("%s\\%s"), m_reg_product_root, label);
+
+	res = RegDeleteTree(HKEY_CURRENT_USER, subkey);
+
+	m_tree.delete_item(m_tree.GetSelectedItem());
+}
+
+void CKoinoToolsDlg::OnMenuTreeRename()
+{
+	m_tree.rename_item();
 }

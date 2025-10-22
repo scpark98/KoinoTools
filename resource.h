@@ -25,13 +25,18 @@
 #define ID_MENU_TREE_CONTEXT            32772
 #define ID_MAIN_32773                   32773
 #define ID_MENU_LMM_SDS_ENCRYPT         32774
+#define ID_TREECONTEXT_32775            32775
+#define ID_MENU_TREE_DELETE             32776
+#define ID_MENU_TREE_NEW_ITEM           32777
+#define ID_TREECONTEXT_32778            32778
+#define ID_MENU_TREE_RENAME             32779
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        134
-#define _APS_NEXT_COMMAND_VALUE         32775
+#define _APS_NEXT_COMMAND_VALUE         32780
 #define _APS_NEXT_CONTROL_VALUE         1012
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

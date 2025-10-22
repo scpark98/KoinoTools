@@ -54,9 +54,10 @@ BOOL CSDSEncryptDlg::OnInitDialog()
 	m_sp.SetHeader("Koino1807!123456\0");
 	m_sp.SetKey("SDSLinkMeMine123\0");
 
+	//CSCEdit은 default로 DT_VCENTER지만 이 창에서는 긴 파라미터를 주로 다루므로
+	//WordWrap을 위해 DT_TOP으로 변경.
 	m_edit_plain_text.set_line_align(DT_TOP);
 	m_edit_encrypted_text.set_line_align(DT_TOP);
-
 
 	RestoreWindowPosition(&theApp, this, _T("SDSEncryptDlg"));
 
