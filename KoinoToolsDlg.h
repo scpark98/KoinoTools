@@ -6,6 +6,7 @@
 
 #include "Common/device/keyboard/SCKeyInput/SCKeyInput.h"
 #include "Common/ResizeCtrl.h"
+#include "Common/ControlSplitter.h"
 #include "Common/CStatic/SCStatic/SCStatic.h"
 #include "Common/CTreeCtrl/SCTreeCtrl/SCTreeCtrl.h"
 #include "Common/CListCtrl/CVtListCtrlEx/VtListCtrlEx.h"
@@ -128,4 +129,5 @@ public:
 	afx_msg void OnMenuTreeDelete();
 	afx_msg void OnMenuTreeNewItem();
 	afx_msg void OnMenuTreeRename();
+	CControlSplitter m_vert_splitter;
 };

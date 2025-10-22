@@ -70,6 +70,7 @@ void CKoinoToolsDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_TREE, m_tree);
 	DDX_Control(pDX, IDC_RICH, m_rich);
 	DDX_Control(pDX, IDC_EDIT1, m_edit1);
+	DDX_Control(pDX, IDC_BUTTON_SPLITTER, m_vert_splitter);
 }
 
 BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
@@ -131,6 +132,7 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	m_resize.Add(IDC_TREE, 0, 0, 0, 100);
 	m_resize.Add(IDC_LIST, 0, 0, 100, 0);
 	m_resize.Add(IDC_RICH, 0, 0, 100, 100);
+	m_resize.Add(IDC_BUTTON_SPLITTER, 0, 0, 0, 100);
 
 	m_static_code_sign_no_manifest.set_back_color(Gdiplus::Color::Ivory);
 	m_static_code_sign_no_manifest.set_round(8, Gdiplus::Color::RoyalBlue, get_sys_color(COLOR_3DFACE));
@@ -149,6 +151,15 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	m_product = theApp.GetProfileString(_T("setting"), _T("recent product"), _T("LinkMeMine"));
 	m_tree.select_item(m_product);
 	//m_tree.iterate_tree_in_order();
+
+	int min_size = 160;
+	m_vert_splitter.set_type(CControlSplitter::CS_VERT, true, Gdiplus::Color::LightGray);
+	m_vert_splitter.AddToTopOrLeftCtrls(IDC_TREE, min_size);
+	m_vert_splitter.AddToBottomOrRightCtrls(IDC_STATIC_CODE_SIGN_NO_MANIFEST, 0, 0, SPF_LEFT);
+	m_vert_splitter.AddToBottomOrRightCtrls(IDC_STATIC_CODE_SIGN_MANIFEST, 0, 0, SPF_LEFT);
+	m_vert_splitter.AddToBottomOrRightCtrls(IDC_LIST);
+	m_vert_splitter.AddToBottomOrRightCtrls(IDC_RICH);
+	//m_vert_splitter.AddToBottomOrRightCtrls(IDC_CHECK);
 
 	Wait(10);
 	RestoreWindowPosition(&theApp, this);
@@ -679,6 +690,8 @@ void CKoinoToolsDlg::init_list()
 	m_list.allow_edit_column(col_item, false);
 	m_list.allow_edit_column(col_value, true);
 	m_list.allow_edit_column(col_desc, false);
+
+	m_list.allow_sort(false);
 
 	m_list.restore_column_width(&theApp, _T("list"));
 

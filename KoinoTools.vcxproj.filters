@@ -108,6 +108,9 @@
     <ClInclude Include="..\Common\system\CCmdLine\CmdLine.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="..\Common\ControlSplitter.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="KoinoTools.cpp">
@@ -180,6 +183,9 @@
       <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\system\CCmdLine\CmdLine.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\ControlSplitter.cpp">
       <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>

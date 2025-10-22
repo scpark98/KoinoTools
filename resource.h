@@ -21,6 +21,8 @@
 #define IDC_EDIT_PLAIN                  1009
 #define IDC_STATIC_PLAIN                1010
 #define IDC_STATIC_ENCRYPTED            1011
+#define IDC_BUTTON1                     1012
+#define IDC_BUTTON_SPLITTER             1012
 #define ID_TREECONTEXT_32771            32771
 #define ID_MENU_TREE_CONTEXT            32772
 #define ID_MAIN_32773                   32773
@@ -37,7 +39,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        134
 #define _APS_NEXT_COMMAND_VALUE         32780
-#define _APS_NEXT_CONTROL_VALUE         1012
+#define _APS_NEXT_CONTROL_VALUE         1013
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
