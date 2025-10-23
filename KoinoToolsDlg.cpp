@@ -264,7 +264,7 @@ void CKoinoToolsDlg::OnBnClickedCancel()
 	DeleteFile(get_exe_directory() + _T("\\KoinoTools.reg"));
 	param.Format(_T("export \"HKCU\\Software\\Koino\\KoinoTools\" \"%s\\KoinoTools.reg\""), get_exe_directory());
 	//run_process(cmd);
-	ShellExecute(m_hWnd, _T("open"), _T("reg.exe"), param, NULL, SW_SHOWNORMAL);
+	ShellExecute(m_hWnd, _T("open"), _T("reg.exe"), param, NULL, SW_HIDE);
 
 	/* RegSaveKeyEx()는 binary 형태로 저장된다. 아마도 RegLoadKeyEx()와 같은 함수와 같이 사용해야하는 듯 하다.
 	HKEY hKey;
