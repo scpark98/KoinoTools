@@ -382,7 +382,18 @@
     <None Include="res\KoinoTools.rc2" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="res\auth.ico" />
+    <Image Include="res\bubble.ico" />
+    <Image Include="res\desktop.ico" />
+    <Image Include="res\diagram.ico" />
+    <Image Include="res\docs.ico" />
+    <Image Include="res\HelpUChecker.ico" />
+    <Image Include="res\KoinoCheckerA.ico" />
+    <Image Include="res\KoinoCheckerL.ico" />
+    <Image Include="res\KoinoCheckerL_SE.ico" />
+    <Image Include="res\KoinoCheckTool.ico" />
     <Image Include="res\KoinoTools.ico" />
+    <Image Include="res\PCAnyPro.ico" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\Common\CListCtrl\CVtListCtrlEx\readme.txt" />

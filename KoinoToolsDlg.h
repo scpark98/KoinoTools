@@ -74,6 +74,7 @@ public:
 	void					thread_run_codesign(CString cmd);
 
 	void					init_tree();
+	int						get_icon_index(CString product_name);
 
 	enum LIST_COLUMN
 	{

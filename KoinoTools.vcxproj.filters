@@ -207,6 +207,39 @@
     <Image Include="res\KoinoTools.ico">
       <Filter>리소스 파일</Filter>
     </Image>
+    <Image Include="res\HelpUChecker.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\KoinoCheckerA.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\KoinoCheckerL.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\KoinoCheckerL_SE.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\KoinoCheckTool.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\PCAnyPro.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\auth.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\bubble.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\desktop.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\diagram.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\docs.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\Common\CListCtrl\CVtListCtrlEx\readme.txt">

@@ -314,6 +314,14 @@ void CKoinoToolsDlg::OnWindowPosChanged(WINDOWPOS* lpwndpos)
 void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
+	CString delcert_path;
+	delcert_path.Format(_T("%s\\delcert.exe"), m_list.get_text(0, col_value));
+	if (!PathFileExists(delcert_path))
+	{
+		AfxMessageBox(delcert_path + _T("\n\n위 파일이 존재하지 않습니다.\ndelcert.exe가 없을 경우 이미 CodeSign된 파일은 실패할 수 있습니다."));
+		return;
+	}
+
 	m_action = action_no_action;
 
 	TCHAR sfile[MAX_PATH];
@@ -429,7 +437,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		CString manifest_file = m_manifest_folder + _T("\\") + filename + _T(".manifest");
 		CString result;
 
-		m_rich.add(-1, _T("codesign start : %s (%d/%d)...\n"), filename, i + 1, m_files.size());
+		m_rich.add(royalblue, _T("codesign start : %s (%d/%d)...\n"), filename, i + 1, m_files.size());
 
 		//파일이 열려있으면 코드사인이 실패하므로 에러로 처리한다.
 		//_taccess()를 써봤으나 0이 리턴되고(사용중이 아니라고 판별)
@@ -635,6 +643,10 @@ void CKoinoToolsDlg::thread_auto_password_input()
 
 void CKoinoToolsDlg::init_tree()
 {
+	//순서는 의미없이 그냥 resource editor에 등록된 순서대로 추가함.
+	m_tree.set_imagelist(IDI_ANYSUPPORT, IDI_AUTH, IDI_BUBBLE, IDI_CHECK, IDI_DESKTOP, IDI_DIAGRAM, IDI_DOCS, IDI_HELPU, IDI_LINKMEMINE, IDI_LINKMEMINE_SE, IDI_PCANYPRO);
+
+	//registry의 product 섹션 아래 모든 항목을 가져와서 트리에 추가한다.
 	std::deque<CString> enum_subkeys;
 	enum_registry_subkeys(HKEY_CURRENT_USER, m_reg_product_root, enum_subkeys);
 
@@ -646,10 +658,15 @@ void CKoinoToolsDlg::init_tree()
 		std::deque<CString> token;
 		get_token_string(subkey, token, _T("\\"), false);
 
+		int icon_index;
+
+		//최종 경로면 그대로 노드를 추가하고
 		if (token.size() == 1)
 		{
-			m_tree.InsertItem(token[0]);
+			icon_index = get_icon_index(token[0]);
+			m_tree.InsertItem(token[0], icon_index, icon_index);
 		}
+		//다중 경로면 말단 경로까지 탐색한 후 추가한다.
 		else
 		{
 			HTREEITEM hItem = NULL;
@@ -662,13 +679,30 @@ void CKoinoToolsDlg::init_tree()
 				}
 				else
 				{
-					m_tree.InsertItem(token[i], 0, 0, hItem);
+					icon_index = get_icon_index(token[i]);
+					m_tree.InsertItem(token[i], icon_index, icon_index, hItem);
 				}
 			}
 		}
 	}
 
 	m_tree.expand_all();
+}
+
+int CKoinoToolsDlg::get_icon_index(CString product_name)
+{
+	if (find(product_name, _T("anysupport")) >= 0)
+		return 0;
+	else if (find(product_name, _T("helpu")) >= 0)
+		return 7;
+	else if (find(product_name, _T("linkmemine_se")) >= 0)
+		return 9;
+	else if (find(product_name, _T("linkmemine")) >= 0)
+		return 8;
+	else if (find(product_name, _T("pcanypro")) >= 0)
+		return 10;
+
+	return 1;
 }
 
 void CKoinoToolsDlg::init_list()
@@ -922,6 +956,10 @@ void CKoinoToolsDlg::OnTvnEndLabelEditTree(NMHDR* pNMHDR, LRESULT* pResult)
 			RegCloseKey(hKey);
 
 			theApp.WriteProfileString(_T("setting"), _T("recent product"), m_product + _T("\\") + new_label);
+
+			//이름이 변경되면 해당 제품에 맞는 아이콘으로 변경해준다.
+			int icon_index = get_icon_index(new_label);
+			m_tree.SetItemImage(m_tree.GetSelectedItem(), icon_index, icon_index);
 		}
 	}
 

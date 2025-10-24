@@ -10,6 +10,18 @@
 #define IDR_MENU_TREE                   130
 #define IDR_MENU_CONTEXT                131
 #define IDD_SDS_ENCRYPT                 132
+#define IDI_HELPU                       134
+#define IDI_ANYSUPPORT                  135
+#define IDI_LINKMEMINE                  136
+#define IDI_LINKMEMINE_SE               137
+#define IDI_CHECK                       138
+#define IDI_PCANYPRO                    139
+#define IDI_AUTH                        140
+#define IDI_BUBBLE                      141
+#define IDI_DESKTOP                     142
+#define IDI_DIAGRAM                     143
+#define IDI_ICON5                       144
+#define IDI_DOCS                        144
 #define IDC_TREE                        1001
 #define IDC_STATIC_CODE_SIGN_MANIFEST   1002
 #define IDC_STATIC_CODE_SIGN_NO_MANIFEST 1003
@@ -21,7 +33,6 @@
 #define IDC_EDIT_PLAIN                  1009
 #define IDC_STATIC_PLAIN                1010
 #define IDC_STATIC_ENCRYPTED            1011
-#define IDC_BUTTON1                     1012
 #define IDC_BUTTON_SPLITTER             1012
 #define ID_TREECONTEXT_32771            32771
 #define ID_MENU_TREE_CONTEXT            32772
@@ -37,7 +48,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        134
+#define _APS_NEXT_RESOURCE_VALUE        145
 #define _APS_NEXT_COMMAND_VALUE         32780
 #define _APS_NEXT_CONTROL_VALUE         1013
 #define _APS_NEXT_SYMED_VALUE           101
