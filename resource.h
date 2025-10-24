@@ -20,7 +20,6 @@
 #define IDI_BUBBLE                      141
 #define IDI_DESKTOP                     142
 #define IDI_DIAGRAM                     143
-#define IDI_ICON5                       144
 #define IDI_DOCS                        144
 #define IDC_TREE                        1001
 #define IDC_STATIC_CODE_SIGN_MANIFEST   1002
@@ -43,13 +42,15 @@
 #define ID_MENU_TREE_NEW_ITEM           32777
 #define ID_TREECONTEXT_32778            32778
 #define ID_MENU_TREE_RENAME             32779
+#define ID_TREECONTEXT_32780            32780
+#define ID_MENU_TREE_VIEW_REGEDIT       32781
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        145
-#define _APS_NEXT_COMMAND_VALUE         32780
+#define _APS_NEXT_COMMAND_VALUE         32782
 #define _APS_NEXT_CONTROL_VALUE         1013
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

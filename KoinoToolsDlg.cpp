@@ -93,6 +93,7 @@ BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
 	ON_COMMAND(ID_MENU_TREE_DELETE, &CKoinoToolsDlg::OnMenuTreeDelete)
 	ON_COMMAND(ID_MENU_TREE_NEW_ITEM, &CKoinoToolsDlg::OnMenuTreeNewItem)
 	ON_COMMAND(ID_MENU_TREE_RENAME, &CKoinoToolsDlg::OnMenuTreeRename)
+	ON_COMMAND(ID_MENU_TREE_VIEW_REGEDIT, &CKoinoToolsDlg::OnMenuTreeViewRegEdit)
 END_MESSAGE_MAP()
 
 
@@ -1014,4 +1015,15 @@ void CKoinoToolsDlg::OnMenuTreeDelete()
 void CKoinoToolsDlg::OnMenuTreeRename()
 {
 	m_tree.rename_item();
+}
+
+void CKoinoToolsDlg::OnMenuTreeViewRegEdit()
+{
+	CString param;
+
+	//cmd line : REG ADD HKCU\Software\Microsoft\Windows\CurrentVersion\Applets\Regedit /v LastKey /t REG_SZ /d "컴퓨터\HKEY_CURRENT_USER\SOFTWARE\Koino" /f
+	param.Format(_T("add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\Regedit /v LastKey /t REG_SZ /d \"컴퓨터\\HKEY_CURRENT_USER\\SOFTWARE\\Koino\\KoinoTools\\product\" /f"));
+	ShellExecute(m_hWnd, _T("open"), _T("reg.exe"), param, NULL, SW_HIDE);
+	Wait(10);
+	ShellExecute(m_hWnd, _T("open"), _T("regedit.exe"), NULL, NULL, SW_SHOWNORMAL);
 }

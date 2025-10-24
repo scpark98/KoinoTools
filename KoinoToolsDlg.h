@@ -131,4 +131,5 @@ public:
 	afx_msg void OnMenuTreeNewItem();
 	afx_msg void OnMenuTreeRename();
 	CControlSplitter m_vert_splitter;
+	afx_msg void OnMenuTreeViewRegEdit();
 };
