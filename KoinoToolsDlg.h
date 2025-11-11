@@ -132,4 +132,5 @@ public:
 	afx_msg void OnMenuTreeRename();
 	CControlSplitter m_vert_splitter;
 	afx_msg void OnMenuTreeViewRegEdit();
+	afx_msg void OnMenuDragFullWindows();
 };

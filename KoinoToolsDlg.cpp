@@ -94,6 +94,7 @@ BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
 	ON_COMMAND(ID_MENU_TREE_NEW_ITEM, &CKoinoToolsDlg::OnMenuTreeNewItem)
 	ON_COMMAND(ID_MENU_TREE_RENAME, &CKoinoToolsDlg::OnMenuTreeRename)
 	ON_COMMAND(ID_MENU_TREE_VIEW_REGEDIT, &CKoinoToolsDlg::OnMenuTreeViewRegEdit)
+	ON_COMMAND(ID_MENU_DRAG_FULL_WINDOWS, &CKoinoToolsDlg::OnMenuDragFullWindows)
 END_MESSAGE_MAP()
 
 
@@ -164,6 +165,12 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 
 	Wait(10);
 	RestoreWindowPosition(&theApp, this);
+
+	//이 프로그램은 관리자 권한으로 실행되고 탐색기는 사용자 권한으로 실행되므로
+	//UAC가 켜져있을 경우에는 탐색기에서 이 프로그램으로 Drag&Drop을 할 수 없도록 윈도우 정책이 정해져 있다.
+	//따라서 아래와 같이 두 줄을 호출해줘야만 가능해진다.
+	ChangeWindowMessageFilter(0x0049, MSGFLT_ADD);
+	ChangeWindowMessageFilterEx(m_hWnd, WM_DROPFILES, MSGFLT_ADD, nullptr);
 
 	DragAcceptFiles();
 
@@ -878,6 +885,11 @@ void CKoinoToolsDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 	menu.LoadMenu(IDR_MENU_CONTEXT);
 	pMenu = menu.GetSubMenu(0);
 
+	BOOL enabled;
+	SystemParametersInfo(SPI_GETDRAGFULLWINDOWS, NULL, &enabled, 0);
+
+	menu.CheckMenuItem(ID_MENU_DRAG_FULL_WINDOWS, enabled ? MF_CHECKED : MF_UNCHECKED);
+
 	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, this);
 }
 
@@ -1021,9 +1033,22 @@ void CKoinoToolsDlg::OnMenuTreeViewRegEdit()
 {
 	CString param;
 
+	//registry editor에게 특정 경로를 마지막 경로라고 지정하게 한 뒤
 	//cmd line : REG ADD HKCU\Software\Microsoft\Windows\CurrentVersion\Applets\Regedit /v LastKey /t REG_SZ /d "컴퓨터\HKEY_CURRENT_USER\SOFTWARE\Koino" /f
 	param.Format(_T("add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\Regedit /v LastKey /t REG_SZ /d \"컴퓨터\\HKEY_CURRENT_USER\\SOFTWARE\\Koino\\KoinoTools\\product\" /f"));
 	ShellExecute(m_hWnd, _T("open"), _T("reg.exe"), param, NULL, SW_HIDE);
 	Wait(10);
+
+	//registry editor를 열어준다.
 	ShellExecute(m_hWnd, _T("open"), _T("regedit.exe"), NULL, NULL, SW_SHOWNORMAL);
+}
+
+void CKoinoToolsDlg::OnMenuDragFullWindows()
+{
+	BOOL enabled;
+
+	SystemParametersInfo(SPI_GETDRAGFULLWINDOWS, NULL, &enabled, 0);
+
+	enabled = !enabled;
+	SystemParametersInfo(SPI_SETDRAGFULLWINDOWS, enabled, NULL, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
 }
