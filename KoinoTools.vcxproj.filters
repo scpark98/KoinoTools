@@ -84,15 +84,6 @@
     <ClInclude Include="..\Common\ui\theme\ThemeLib.h">
       <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="..\Common\CMenu\SCMenuBar\SCMenuBar.h">
-      <Filter>Common\SCMenuBar</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Common\CMenu\SCMenuBar\SCMenuButton.h">
-      <Filter>Common\SCMenuBar</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Common\CMenu\SCMenuBar\SCMenu.h">
-      <Filter>Common\SCMenuBar</Filter>
-    </ClInclude>
     <ClInclude Include="..\Common\device\keyboard\SCKeyInput\SCKeyInput.h">
       <Filter>Common</Filter>
     </ClInclude>
@@ -110,6 +101,15 @@
     </ClInclude>
     <ClInclude Include="..\Common\ControlSplitter.h">
       <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CMenu\CSCMenuBar\SCMenu.h">
+      <Filter>Common\SCMenuBar</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CMenu\CSCMenuBar\SCMenuBar.h">
+      <Filter>Common\SCMenuBar</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CMenu\CSCMenuBar\SCMenuButton.h">
+      <Filter>Common\SCMenuBar</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -161,15 +161,6 @@
     <ClCompile Include="..\Common\ui\theme\theme.cpp">
       <Filter>Common</Filter>
     </ClCompile>
-    <ClCompile Include="..\Common\CMenu\SCMenuBar\SCMenuBar.cpp">
-      <Filter>Common\SCMenuBar</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Common\CMenu\SCMenuBar\SCMenuButton.cpp">
-      <Filter>Common\SCMenuBar</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Common\CMenu\SCMenuBar\SCMenu.cpp">
-      <Filter>Common\SCMenuBar</Filter>
-    </ClCompile>
     <ClCompile Include="..\Common\device\keyboard\SCKeyInput\SCKeyInput.cpp">
       <Filter>Common</Filter>
     </ClCompile>
@@ -187,6 +178,15 @@
     </ClCompile>
     <ClCompile Include="..\Common\ControlSplitter.cpp">
       <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CMenu\CSCMenuBar\SCMenuBar.cpp">
+      <Filter>Common\SCMenuBar</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CMenu\CSCMenuBar\SCMenuButton.cpp">
+      <Filter>Common\SCMenuBar</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CMenu\CSCMenuBar\SCMenu.cpp">
+      <Filter>Common\SCMenuBar</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -651,6 +651,9 @@ void CKoinoToolsDlg::thread_auto_password_input()
 
 void CKoinoToolsDlg::init_tree()
 {
+	//default=24를 20으로 조정.
+	m_tree.SetItemHeight(20);
+
 	//순서는 의미없이 그냥 resource editor에 등록된 순서대로 추가함.
 	m_tree.set_imagelist(IDI_ANYSUPPORT, IDI_AUTH, IDI_BUBBLE, IDI_CHECK, IDI_DESKTOP, IDI_DIAGRAM, IDI_DOCS, IDI_HELPU, IDI_LINKMEMINE, IDI_LINKMEMINE_SE, IDI_PCANYPRO);
 
@@ -860,7 +863,7 @@ BOOL CKoinoToolsDlg::PreTranslateMessage(MSG* pMsg)
 
 void CKoinoToolsDlg::OnMenuTreeNewItem()
 {
-	CString new_label = m_tree.add_new_item(NULL, _T("새 제품"), true, true);
+	m_tree.add_new_item(NULL, _T("새 제품"), true, true);
 
 	m_product = m_tree.get_selected_item_text(true);
 	trace(m_product);
