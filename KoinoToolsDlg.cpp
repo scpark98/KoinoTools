@@ -175,7 +175,7 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	DragAcceptFiles();
 
 	CString caption;
-	caption.Format(_T("KoinoTools (Ver %s)"), get_file_property());
+	caption.Format(_T("KoinoTools (ver %s)"), get_file_property());
 	SetWindowText(caption);
 
 
