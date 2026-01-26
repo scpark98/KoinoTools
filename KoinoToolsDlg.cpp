@@ -514,7 +514,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 	else
 	{
 		TRACE(_T("codeSign job finished.\n"));
-		m_rich.add(blue, _T("All files codesign completed.\n\n"));
+		m_rich.add(blue, _T("All files codesign completed.\n---------------------------------------\n"));
 	}
 
 	m_in_codesigning = false;
@@ -667,7 +667,7 @@ void CKoinoToolsDlg::init_tree()
 		trace(subkey);
 
 		std::deque<CString> token;
-		get_token_string(subkey, token, _T("\\"), false);
+		get_token_str(subkey, token, _T("\\"), false);
 
 		int icon_index;
 
