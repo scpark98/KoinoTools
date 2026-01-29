@@ -630,11 +630,13 @@ void CKoinoToolsDlg::thread_auto_password_input()
 
 		//지정된 암호를 입력한다.
 		m_key_input.input(m_password);
+		//자동 입력될 키가 아직 버퍼에 남아있다면 500ms 정도 기다린다.
 		while (m_key_input.get_key_count() > 0)
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-		//온전히 모두 입력될 때까지 기다려줘야 한다.
-		//std::this_thread::sleep_for(std::chrono::seconds(1));
+		//m_key_input에 모든 키가 자동 타이핑 된 후 바로 엔터를 치면 마지막 키가 입력이 안된 상태일 수 있으므로
+		//온전히 모두 입력될 때까지 약간 더 여유를 준다.
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 		//OK 버튼 클릭
 		//windows10, windows11 약간 UI가 달라서 ok버튼 위치가 다를 수 있다. Enter키로 처리한다.
