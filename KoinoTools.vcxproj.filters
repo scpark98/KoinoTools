@@ -111,6 +111,9 @@
     <ClInclude Include="..\Common\CMenu\CSCMenuBar\SCMenuButton.h">
       <Filter>Common\SCMenuBar</Filter>
     </ClInclude>
+    <ClInclude Include="..\Common\CScrollbar\SCScrollbar\SCScrollbar.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="KoinoTools.cpp">
@@ -187,6 +190,9 @@
     </ClCompile>
     <ClCompile Include="..\Common\CMenu\CSCMenuBar\SCMenu.cpp">
       <Filter>Common\SCMenuBar</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CScrollbar\SCScrollbar\SCScrollbar.cpp">
+      <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

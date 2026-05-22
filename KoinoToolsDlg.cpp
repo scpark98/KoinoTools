@@ -9,6 +9,8 @@
 #include "afxdialogex.h"
 
 #include <thread>
+#include <winsvc.h>
+
 #include "Common/Functions.h"
 #include "Common/system/CCmdLine/CmdLine.h"
 #include "SDSEncryptDlg.h"
@@ -84,7 +86,6 @@ BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
 	ON_WM_DROPFILES()
 	ON_NOTIFY(TVN_SELCHANGED, IDC_TREE, &CKoinoToolsDlg::OnTvnSelchangedTree)
 	ON_NOTIFY(LVN_ENDLABELEDIT, IDC_LIST, &CKoinoToolsDlg::OnLvnEndLabelEditList)
-	ON_NOTIFY(NM_RCLICK, IDC_TREE, &CKoinoToolsDlg::OnNMRClickTree)
 	ON_NOTIFY(TVN_ENDLABELEDIT, IDC_TREE, &CKoinoToolsDlg::OnTvnEndLabelEditTree)
 	ON_NOTIFY(LVN_BEGINLABELEDIT, IDC_LIST, &CKoinoToolsDlg::OnLvnBeginLabelEditList)
 	ON_NOTIFY(TVN_SELCHANGING, IDC_TREE, &CKoinoToolsDlg::OnTvnSelChangingTree)
@@ -95,6 +96,11 @@ BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
 	ON_COMMAND(ID_MENU_TREE_RENAME, &CKoinoToolsDlg::OnMenuTreeRename)
 	ON_COMMAND(ID_MENU_TREE_VIEW_REGEDIT, &CKoinoToolsDlg::OnMenuTreeViewRegEdit)
 	ON_COMMAND(ID_MENU_DRAG_FULL_WINDOWS, &CKoinoToolsDlg::OnMenuDragFullWindows)
+	ON_COMMAND(ID_MENU_TREE_SERVICE_STOP, &CKoinoToolsDlg::OnMenuTreeServiceStop)
+	ON_COMMAND(ID_MENU_TREE_SERVICE_RESTART, &CKoinoToolsDlg::OnMenuTreeServiceRestart)
+	ON_COMMAND(ID_MENU_TREE_SERVICE_DELETE, &CKoinoToolsDlg::OnMenuTreeServiceDelete)
+	ON_COMMAND(ID_MENU_TREE_LOG_FOLDER, &CKoinoToolsDlg::OnMenuTreeLogFolder)
+	ON_COMMAND(ID_MENU_TREE_DELETE_REG_URLSCHEME_INFO, &CKoinoToolsDlg::OnMenuTreeDeleteRegUrlSchemeInfo)
 END_MESSAGE_MAP()
 
 
@@ -761,8 +767,8 @@ void CKoinoToolsDlg::init_list()
 
 void CKoinoToolsDlg::init_rich()
 {
-	m_rich.ShowTimeInfo(false);
-	m_rich.SetLineSpacing(1);
+	m_rich.show_time_info(false);
+	m_rich.set_line_spacing(1);
 }
 
 void CKoinoToolsDlg::OnTvnSelchangedTree(NMHDR* pNMHDR, LRESULT* pResult)
@@ -884,6 +890,14 @@ void CKoinoToolsDlg::OnMenuTreeNewItem()
 
 void CKoinoToolsDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 {
+	//SCTreeCtrl::OnContextMenu 가 wParam = tree HWND 로 forward 한 경우 분기.
+	//(NM_RCLICK 은 SCTreeCtrl 에서 ON_NOTIFY_REFLECT_EX 로 먼저 잡아 parent 로 안 옴.)
+	if (pWnd && pWnd->GetSafeHwnd() == m_tree.GetSafeHwnd())
+	{
+		show_tree_context_menu(point);
+		return;
+	}
+
 	CMenu menu;
 	CMenu* pMenu = NULL;
 
@@ -898,28 +912,13 @@ void CKoinoToolsDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, this);
 }
 
-void CKoinoToolsDlg::OnNMRClickTree(NMHDR* pNMHDR, LRESULT* pResult)
+void CKoinoToolsDlg::show_tree_context_menu(CPoint point_screen)
 {
-	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	*pResult = 1;
-
-	HTREEITEM hItem = NULL;// = pNMTreeView->itemNew.hItem;	//얻어오지 못한다.
-	CPoint pt;
-	::GetCursorPos(&pt);
-	m_tree.ScreenToClient(&pt);
-	hItem = m_tree.HitTest(pt);
-
-	if (hItem)
-	{
-		TRACE(_T("label = %s\n"), m_tree.GetItemText(hItem));
-
-		//우클릭을 하면 일단 해당 노드를 선택상태로 만들어줘야 한다.
-		m_tree.SelectItem(hItem);
-	}
-	else
-	{
-		m_tree.SelectItem(NULL);
-	}
+	//SCTreeCtrl::OnContextMenu 가 hItem == NULL 이면 forward 안 하므로 여기서는 항상 선택 항목 존재.
+	//선택도 SCTreeCtrl 쪽에서 이미 수행됨.
+	CPoint pt_client = point_screen;
+	m_tree.ScreenToClient(&pt_client);
+	HTREEITEM hItem = m_tree.HitTest(pt_client);
 
 	CMenu menu;
 	menu.LoadMenu(IDR_MENU_TREE);
@@ -929,8 +928,36 @@ void CKoinoToolsDlg::OnNMRClickTree(NMHDR* pNMHDR, LRESULT* pResult)
 	menu.EnableMenuItem(ID_MENU_TREE_RENAME, hItem ? MF_ENABLED : MF_DISABLED);
 	menu.EnableMenuItem(ID_MENU_TREE_DELETE, hItem ? MF_ENABLED : MF_DISABLED);
 
-	::GetCursorPos(&pt);
-	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, pt.x, pt.y, this);
+	CString label = m_tree.get_selected_item_text();
+	CString service_name;
+	if (label.CompareNoCase(_T("LinkMeMine")) == 0)
+		service_name = _T("LMMSvcAgentService");
+	else if (label.CompareNoCase(_T("LinkMeMine_SE")) == 0)
+		service_name = _T("LMMSEAgentService");
+
+	if (service_name.IsEmpty())
+	{
+		menu.EnableMenuItem(ID_MENU_TREE_SERVICE_RESTART, MF_DISABLED);
+		menu.EnableMenuItem(ID_MENU_TREE_SERVICE_STOP, MF_DISABLED);
+		menu.EnableMenuItem(ID_MENU_TREE_SERVICE_DELETE, MF_DISABLED);
+	}
+	else
+	{
+		menu.ModifyMenu(ID_MENU_TREE_SERVICE_RESTART, MF_BYCOMMAND, ID_MENU_TREE_SERVICE_RESTART, service_name + _T(" 재시작(&R)"));
+		menu.ModifyMenu(ID_MENU_TREE_SERVICE_STOP, MF_BYCOMMAND, ID_MENU_TREE_SERVICE_STOP, service_name + _T(" 중지(&S)"));
+		menu.ModifyMenu(ID_MENU_TREE_SERVICE_DELETE, MF_BYCOMMAND, ID_MENU_TREE_SERVICE_DELETE, service_name + _T(" 삭제(&D)"));
+
+		DWORD service_status = 0;
+		DWORD error_code = 0;
+		CString detail;
+
+		service_status = service_command(service_name, _T("query"), error_code, &detail);
+
+		menu.EnableMenuItem(ID_MENU_TREE_SERVICE_STOP, service_status == SERVICE_RUNNING ? MF_ENABLED : MF_DISABLED);
+		menu.EnableMenuItem(ID_MENU_TREE_SERVICE_DELETE, service_status > 0 ? MF_ENABLED : MF_DISABLED);
+	}
+
+	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point_screen.x, point_screen.y, this);
 }
 
 void CKoinoToolsDlg::OnTvnEndLabelEditTree(NMHDR* pNMHDR, LRESULT* pResult)
@@ -1056,4 +1083,163 @@ void CKoinoToolsDlg::OnMenuDragFullWindows()
 
 	enabled = !enabled;
 	SystemParametersInfo(SPI_SETDRAGFULLWINDOWS, enabled, NULL, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+}
+
+void CKoinoToolsDlg::OnMenuTreeServiceStop()
+{
+	CString label = m_tree.get_selected_item_text();
+	CString service_name;
+
+	if (label.CompareNoCase(_T("LinkMeMine")) == 0)
+		service_name = _T("LMMSvcAgentService");
+	else if (label.CompareNoCase(_T("LinkMeMine_SE")) == 0)
+		service_name = _T("LMMSEAgentService");
+	else
+	{
+		return;
+	}
+
+	DWORD error_code = 0;
+	CString detail;
+	DWORD status_code = 0;
+
+	m_rich.add(-1, _T("try to stop %s...\n"), service_name);
+	status_code = service_command(service_name, _T("stop"), error_code, &detail);
+
+	CString str;
+	str.Format(_T("status_code = %d(%s), error_code = %d (%s)"), status_code, get_service_status_str(status_code), error_code, detail);
+	m_rich.add(error_code == 0 ? blue : red, _T("%s\n"), str);
+}
+
+void CKoinoToolsDlg::OnMenuTreeServiceRestart()
+{
+	CString label = m_tree.get_selected_item_text();
+	CString service_name;
+
+	if (label.CompareNoCase(_T("LinkMeMine")) == 0)
+		service_name = _T("LMMSvcAgentService");
+	else if (label.CompareNoCase(_T("LinkMeMine_SE")) == 0)
+		service_name = _T("LMMSEAgentService");
+	else
+	{
+		return;
+	}
+
+	DWORD error_code = 0;
+	CString detail;
+	DWORD status_code = 0;
+
+	m_rich.add(-1, _T("try to restart %s...\n"), service_name);
+	status_code = service_command(service_name, _T("restart"), error_code, &detail);
+
+	CString str;
+	str.Format(_T("status_code = %d(%s), error_code = %d (%s)"), status_code, get_service_status_str(status_code), error_code, detail);
+	m_rich.add(error_code == 0 ? blue : red, _T("%s\n"), str);
+}
+
+void CKoinoToolsDlg::OnMenuTreeServiceDelete()
+{
+	CString label = m_tree.get_selected_item_text();
+	CString service_name;
+
+	if (label.CompareNoCase(_T("LinkMeMine")) == 0)
+		service_name = _T("LMMSvcAgentService");
+	else if (label.CompareNoCase(_T("LinkMeMine_SE")) == 0)
+		service_name = _T("LMMSEAgentService");
+	else
+	{
+		return;
+	}
+
+	DWORD error_code = 0;
+	CString detail;
+	DWORD status_code = 0;
+
+	m_rich.add(-1, _T("try to delete %s...\n"), service_name);
+	status_code = service_command(service_name, _T("delete"), error_code, &detail);
+
+	CString str;
+	str.Format(_T("status_code = %d(%s), error_code = %d (%s)"), status_code, get_service_status_str(status_code), error_code, detail);
+	m_rich.add(error_code == 0 ? blue : red, _T("%s\n"), str);
+}
+
+void CKoinoToolsDlg::OnMenuTreeLogFolder()
+{
+	CString label = m_tree.get_selected_item_text();
+
+	if (label.CompareNoCase(_T("LinkMeMine")) == 0)
+	{
+		ShellExecute(m_hWnd, _T("open"), _T("C:\\Users\\Public\\Documents\\LinkMeMine"), NULL, NULL, SW_SHOWNORMAL);
+	}
+	else if (label.CompareNoCase(_T("LinkMeMine_SE")) == 0)
+	{
+		ShellExecute(m_hWnd, _T("open"), _T("C:\\Users\\Public\\Documents\\LinkMeMineSE"), NULL, NULL, SW_SHOWNORMAL);
+	}
+	else
+	{
+		AfxMessageBox(_T("not defined"));
+	}
+}
+
+void CKoinoToolsDlg::OnMenuTreeDeleteRegUrlSchemeInfo()
+{
+	//URLScheme 정보는 총 3군데에 등록된다.
+	//https://docs.google.com/presentation/d/1Rc18rcW05aMKB4FbQLFV-N-FKEg1hGmK62_01AzoLTQ/edit?slide=id.g3705e7456f4_0_0#slide=id.g3705e7456f4_0_0
+	//HKEY_CURRENT_USER에 등록하면 윈도우에서 HKEY_CURRENT_USER + HKEY_LOCAL_MACHINE 의 \Software\Classes 를 합쳐서
+	//HKEY_CLASSES_ROOT\Software\Classes 로 사용하므로 프로그램에서는 HKEY_CURRENT_USER 까지만 만들어주면 된다.
+	//단, 삭제할 때는 3군데 모두 삭제해줘야 한다.
+	CString label = m_tree.get_selected_item_text();
+	std::deque<CString> url_scheme_protocols;
+
+	if (label.CompareNoCase(_T("LinkMeMine")) == 0)
+	{
+		url_scheme_protocols.push_back(_T("manuallauncher.lmm.service"));
+	}
+	else if (label.CompareNoCase(_T("LinkMeMine_SE")) == 0)
+	{
+		url_scheme_protocols.push_back(_T("manuallauncher.lmmse.service"));
+	}
+	else if (label.CompareNoCase(_T("AnySupport")) == 0)
+	{
+		url_scheme_protocols.push_back(_T("manuallauncher.anysupport.service.host"));
+		url_scheme_protocols.push_back(_T("manuallauncher.anysupport.service.supporter"));
+	}
+	else if (label.CompareNoCase(_T("HelpU")) == 0)
+	{
+		url_scheme_protocols.push_back(_T("manuallauncher.helpu.service.host"));
+		url_scheme_protocols.push_back(_T("manuallauncher.helpu.service.supporter"));
+	}
+	else
+	{
+		AfxMessageBox(_T("not defined"));
+	}
+
+	LSTATUS status;
+	//3군데 모두 돌면서 동일한 키를 삭제한다.
+	for (int i = 0; i < url_scheme_protocols.size(); i++)
+	{
+		status = RegDeleteTree(HKEY_CLASSES_ROOT, url_scheme_protocols[i]);
+		if (status == ERROR_SUCCESS)
+			m_rich.addl(blue, _T("HKEY_CLASSES_ROOT\\%s deleted"), url_scheme_protocols[i]);
+		else if (status == ERROR_FILE_NOT_FOUND)
+			m_rich.addl(blue, _T("HKEY_CLASSES_ROOT\\%s does not exists. skip."), url_scheme_protocols[i]);
+		else
+			m_rich.addl(red, _T("HKEY_CLASSES_ROOT\\%s delete failed. status = %d"), url_scheme_protocols[i], status);
+
+		status = RegDeleteTree(HKEY_CURRENT_USER, _T("Software\\Classes\\") + url_scheme_protocols[i]);
+		if (status == ERROR_SUCCESS)
+			m_rich.addl(blue, _T("HKEY_CURRENT_USER\\Software\\Classes\\%s deleted"), url_scheme_protocols[i]);
+		else if (status == ERROR_FILE_NOT_FOUND)
+			m_rich.addl(blue, _T("HKEY_CURRENT_USER\\%s does not exists. skip."), url_scheme_protocols[i]);
+		else
+			m_rich.addl(red, _T("HKEY_CURRENT_USER\\Software\\Classes\\%s delete failed"), url_scheme_protocols[i]);
+
+		status = RegDeleteTree(HKEY_LOCAL_MACHINE, _T("Software\\Classes\\") + url_scheme_protocols[i]);
+		if (status == ERROR_SUCCESS)
+			m_rich.addl(blue, _T("HKEY_LOCAL_MACHINE\\Software\\Classes\\%s deleted"), url_scheme_protocols[i]);
+		else if (status == ERROR_FILE_NOT_FOUND)
+			m_rich.addl(blue, _T("HKEY_LOCAL_MACHINE\\%s does not exists. skip."), url_scheme_protocols[i]);
+		else
+			m_rich.addl(red, _T("HKEY_LOCAL_MACHINE\\Software\\Classes\\%s delete failed"), url_scheme_protocols[i]);
+	}
 }

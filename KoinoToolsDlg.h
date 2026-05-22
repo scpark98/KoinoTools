@@ -120,7 +120,7 @@ public:
 	afx_msg void OnLvnEndLabelEditList(NMHDR* pNMHDR, LRESULT* pResult);
 	CRichEditCtrlEx m_rich;
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
-	afx_msg void OnNMRClickTree(NMHDR* pNMHDR, LRESULT* pResult);
+	void show_tree_context_menu(CPoint point_screen);
 	afx_msg void OnTvnEndLabelEditTree(NMHDR* pNMHDR, LRESULT* pResult);
 	CSCEdit m_edit1;
 	afx_msg void OnLvnBeginLabelEditList(NMHDR* pNMHDR, LRESULT* pResult);
@@ -133,4 +133,9 @@ public:
 	CControlSplitter m_vert_splitter;
 	afx_msg void OnMenuTreeViewRegEdit();
 	afx_msg void OnMenuDragFullWindows();
+	afx_msg void OnMenuTreeServiceStop();
+	afx_msg void OnMenuTreeServiceRestart();
+	afx_msg void OnMenuTreeServiceDelete();
+	afx_msg void OnMenuTreeLogFolder();
+	afx_msg void OnMenuTreeDeleteRegUrlSchemeInfo();
 };
