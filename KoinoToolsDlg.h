@@ -110,8 +110,8 @@ public:
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedCancel();
-	CSCStatic m_static_code_sign_manifest;
-	CSCStatic m_static_code_sign_no_manifest;
+	CSCStatic			m_static_code_sign_manifest;
+	CSCStatic			m_static_code_sign_no_manifest;
 	afx_msg void OnWindowPosChanged(WINDOWPOS* lpwndpos);
 	afx_msg void OnDropFiles(HDROP hDropInfo);
 	CVtListCtrlEx m_list;

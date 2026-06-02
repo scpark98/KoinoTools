@@ -142,14 +142,18 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	m_resize.Add(IDC_RICH, 0, 0, 100, 100);
 	m_resize.Add(IDC_BUTTON_SPLITTER, 0, 0, 0, 100);
 
+	//단락 모드는 set_tagged_text 가 호출되는 시점의 색상·폰트·line_spacing 로 단락을 build 하므로
+	//모든 setter 가 반드시 set_tagged_text 보다 먼저 와야 한다.
 	m_static_code_sign_no_manifest.set_back_color(Gdiplus::Color::Ivory);
 	m_static_code_sign_no_manifest.set_round(8, Gdiplus::Color::RoyalBlue, get_sys_color(COLOR_3DFACE));
 	m_static_code_sign_no_manifest.set_font_size(10);
+	m_static_code_sign_no_manifest.set_tagged_text(_T("Drop exe files here for<br><b>CodeSign with <cr=red>No Manifest"));
 	m_static_code_sign_no_manifest.set_tooltip_text(_T("manifest를 적용하지 않고 CodeSign할 파일들을 여기에 drag&drop 합니다.\n(주의 : LMMAgent.exe는 반드시 manifest를 포함하여 CodeSign 해야 함!)"));
 
 	m_static_code_sign_manifest.set_back_color(Gdiplus::Color::AntiqueWhite);
 	m_static_code_sign_manifest.set_round(8, Gdiplus::Color::IndianRed, get_sys_color(COLOR_3DFACE));
 	m_static_code_sign_manifest.set_font_size(10);
+	m_static_code_sign_manifest.set_tagged_text(_T("Drop exe files here for<br><b>CodeSign with <cr=blue>Manifest"));
 	m_static_code_sign_manifest.set_tooltip_text(_T("manifest를 적용하여 CodeSign할 파일들을 여기에 drag&drop 합니다.\n(주의 : LMMAgent.exe는 반드시 manifest를 포함하여 CodeSign 해야 함!)"));
 
 	init_tree();
@@ -726,7 +730,9 @@ int CKoinoToolsDlg::get_icon_index(CString product_name)
 
 void CKoinoToolsDlg::init_list()
 {
-	m_list.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | LVS_EX_GRIDLINES);
+	//LVS_EX_FLATSB 사용 금지 — CVtListCtrlEx 는 CSCScrollbar overlay 가 단독 결정자.
+	//FlatSB 모듈이 native scrollbar 비트를 시각화하면 overlay 와 충돌(드래그 시 사라지는 가로바 현상 등).
+	m_list.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
 
 	m_list.set_headings(_T("항목,100;경로,300;설명,300"));
 	//set_font_name(_T("맑은 고딕"));
