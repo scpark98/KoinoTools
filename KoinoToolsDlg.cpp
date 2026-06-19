@@ -281,8 +281,8 @@ void CKoinoToolsDlg::OnBnClickedCancel()
 
 	DeleteFile(get_exe_directory() + _T("\\KoinoTools.reg"));
 	param.Format(_T("export \"HKCU\\Software\\Koino\\KoinoTools\" \"%s\\KoinoTools.reg\""), get_exe_directory());
-	//run_process(cmd);
-	ShellExecute(m_hWnd, _T("open"), _T("reg.exe"), param, NULL, SW_HIDE);
+	run_command(param);
+	//ShellExecute(m_hWnd, _T("open"), _T("reg.exe"), param, NULL, SW_HIDE);
 
 	/* RegSaveKeyEx()는 binary 형태로 저장된다. 아마도 RegLoadKeyEx()와 같은 함수와 같이 사용해야하는 듯 하다.
 	HKEY hKey;
@@ -471,7 +471,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		//우선 해당 파일이 이미 codesign되어 있다면 오류가 발생하는 경우가 있으므로 delcert.exe로 지워준다.
 		m_rich.add(-1, _T("delcert : %s"), filename);
 		cmd.Format(_T("\"%s\\delcert.exe\" \"%s\""), m_signtool_path, m_files[i]);
-		result = run_process(cmd, true);
+		result = run_command(cmd);
 		m_rich.add(blue, _T(" ok\n"));
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 
@@ -486,7 +486,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 
 			cmd.Format(_T("\"%s\" -manifest \"%s\" -outputresource:\"%s\""), m_mt_path, manifest_file, m_files[i]);
 			m_rich.add(-1, _T("manifest cmd : %s\n"), cmd);
-			result = run_process(cmd, true);
+			result = run_command(cmd);
 		}
 
 		m_thread_auto_password_input_paused = false;
@@ -494,7 +494,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		cmd.Format(_T("\"%s\" sign /sha1 %s /s my /t http://timestamp.digicert.com /fd sha1 /v \"%s\""),
 			m_signtool_path, m_fingerprint, m_files[i]);
 		m_rich.add(-1, _T("#1 phase codesign : %s\n"), cmd);
-		result = run_process(cmd, true);
+		result = run_command(cmd);
 
 		while (FindWindowByCaption(_T("토큰 로그온"), true) != NULL)
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -504,7 +504,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		cmd.Format(_T("\"%s\" sign /sha1 %s /s my /tr http://timestamp.digicert.com /as /fd SHA256 /td sha256 /v \"%s\""),
 			m_signtool_path, m_fingerprint, m_files[i]);
 		m_rich.add(-1, _T("#2 phase codesign : %s\n"), cmd);
-		result = run_process(cmd, true);
+		result = run_command(cmd);
 
 		//std::this_thread::sleep_for(std::chrono::seconds(1));
 		while (FindWindowByCaption(_T("토큰 로그온"), true) != NULL)
