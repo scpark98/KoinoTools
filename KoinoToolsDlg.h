@@ -9,7 +9,7 @@
 #include "Common/ControlSplitter.h"
 #include "Common/CStatic/SCStatic/SCStatic.h"
 #include "Common/CTreeCtrl/SCTreeCtrl/SCTreeCtrl.h"
-#include "Common/CListCtrl/CVtListCtrlEx/VtListCtrlEx.h"
+#include "Common/CListCtrl/CSCListCtrl/SCListCtrl.h"
 #include "Common/CEdit/SCEdit/SCEdit.h"
 #include "Common/CEdit/RichEditCtrlEx/RichEditCtrlEx.h"
 
@@ -114,7 +114,7 @@ public:
 	CSCStatic			m_static_code_sign_no_manifest;
 	afx_msg void OnWindowPosChanged(WINDOWPOS* lpwndpos);
 	afx_msg void OnDropFiles(HDROP hDropInfo);
-	CVtListCtrlEx m_list;
+	CSCListCtrl m_list;
 	CSCTreeCtrl m_tree;
 	afx_msg void OnTvnSelchangedTree(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnLvnEndLabelEditList(NMHDR* pNMHDR, LRESULT* pResult);

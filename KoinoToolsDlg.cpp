@@ -527,6 +527,13 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		m_rich.add(blue, _T("All files codesign completed.\n---------------------------------------\n"));
 	}
 
+	//20260722 by claude. codesign 중에는 thread_auto_password_input()이 "토큰 로그온" 창을 foreground로 끌어올리므로
+	//작업이 끝나는 시점에 이 창은 거의 항상 뒤에 있다. 그래서 완료를 작업표시줄 버튼 깜빡임으로 알린다.
+	//CWnd::FlashWindowEx가 전역 ::FlashWindowEx를 가리므로 인자는 (flags, count, timeout) 3개다.
+	//이 멤버는 FLASHWINFO를 채워 ::FlashWindowEx를 호출하는 것이 전부라 워커 스레드에서 호출해도 안전하다.
+	//timeout = 0이면 시스템 기본 깜빡임 주기를 쓴다.
+	FlashWindowEx(FLASHW_ALL, 2, 0);
+
 	m_in_codesigning = false;
 }
 
@@ -730,7 +737,7 @@ int CKoinoToolsDlg::get_icon_index(CString product_name)
 
 void CKoinoToolsDlg::init_list()
 {
-	//LVS_EX_FLATSB 사용 금지 — CVtListCtrlEx 는 CSCScrollbar overlay 가 단독 결정자.
+	//LVS_EX_FLATSB 사용 금지 — CSCListCtrl 은 CSCScrollbar overlay 가 단독 결정자.
 	//FlatSB 모듈이 native scrollbar 비트를 시각화하면 overlay 와 충돌(드래그 시 사라지는 가로바 현상 등).
 	m_list.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
 
@@ -766,7 +773,7 @@ void CKoinoToolsDlg::init_list()
 
 	m_list.set_default_text_color(Gdiplus::Color::DimGray);
 
-	//CVtListCtrl에서 header height, line height를 주면 간혹 0번 항목이 헤더에 가려진 채로 시작되는 경우가 있다.
+	//CSCListCtrl에서 header height, line height를 주면 간혹 0번 항목이 헤더에 가려진 채로 시작되는 경우가 있다.
 	//뭔가 SetLayout()관련 처리가 부족한 듯 한데 우선 0번 항목을 선택시켜주면 이런 부작용이 나타나진 않는다.
 	m_list.select_item(0);
 }
