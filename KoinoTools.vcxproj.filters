@@ -16,12 +16,10 @@
     <Filter Include="Common">
       <UniqueIdentifier>{3240504f-e55e-4680-a6c2-c38b9286d35e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Common\VtListCtrlEx">
-      <UniqueIdentifier>{568da941-c777-44e6-bd30-7843a83fd97a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Common\CSCListCtrl">
       <UniqueIdentifier>{8a3131cb-743e-4c4e-b195-7cdde41b2627}</UniqueIdentifier>
-    </Filter>    <Filter Include="Common\SCMenuBar">
+    </Filter>
+    <Filter Include="Common\SCMenuBar">
       <UniqueIdentifier>{7591111a-e5e5-41a7-b95a-6f8046ffb14b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -58,15 +56,6 @@
     </ClInclude>
     <ClInclude Include="$(CommonLibDir)\SCGdiplusBitmap.h">
       <Filter>Common</Filter>
-    </ClInclude>
-    <ClInclude Include="$(CommonLibDir)\CListCtrl\CVtListCtrlEx\VtListCtrlEx.h">
-      <Filter>Common\VtListCtrlEx</Filter>
-    </ClInclude>
-    <ClInclude Include="$(CommonLibDir)\CListCtrl\CVtListCtrlEx\HeaderCtrlEx.h">
-      <Filter>Common\VtListCtrlEx</Filter>
-    </ClInclude>
-    <ClInclude Include="$(CommonLibDir)\CListCtrl\CVtListCtrlEx\list_data.h">
-      <Filter>Common\VtListCtrlEx</Filter>
     </ClInclude>
     <ClInclude Include="$(CommonLibDir)\CButton\GdiButton\GdiButton.h">
       <Filter>Common</Filter>
@@ -147,15 +136,6 @@
     </ClCompile>
     <ClCompile Include="$(CommonLibDir)\SCGdiplusBitmap.cpp">
       <Filter>Common</Filter>
-    </ClCompile>
-    <ClCompile Include="$(CommonLibDir)\CListCtrl\CVtListCtrlEx\VtListCtrlEx.cpp">
-      <Filter>Common\VtListCtrlEx</Filter>
-    </ClCompile>
-    <ClCompile Include="$(CommonLibDir)\CListCtrl\CVtListCtrlEx\HeaderCtrlEx.cpp">
-      <Filter>Common\VtListCtrlEx</Filter>
-    </ClCompile>
-    <ClCompile Include="$(CommonLibDir)\CListCtrl\CVtListCtrlEx\list_data.cpp">
-      <Filter>Common\VtListCtrlEx</Filter>
     </ClCompile>
     <ClCompile Include="$(CommonLibDir)\CButton\GdiButton\GdiButton.cpp">
       <Filter>Common</Filter>
@@ -260,11 +240,6 @@
     <Image Include="res\docs.ico">
       <Filter>리소스 파일</Filter>
     </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="$(CommonLibDir)\CListCtrl\CVtListCtrlEx\readme.txt">
-      <Filter>Common\VtListCtrlEx</Filter>
-    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(CommonLibDir)\CListCtrl\CSCListCtrl\list_data.h">

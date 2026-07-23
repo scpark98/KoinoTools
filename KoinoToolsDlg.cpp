@@ -742,16 +742,9 @@ void CKoinoToolsDlg::init_list()
 	m_list.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
 
 	m_list.set_headings(_T("항목,100;경로,300;설명,300"));
-	//set_font_name(_T("맑은 고딕"));
-	//set_font_size(), set_font_name()을 호출하지 않고 set_header_height()을 호출하면
-	//CHeaderCtrlEx::OnLayout()에서 에러가 발생한다.
 	m_list.set_header_height(24);
 	m_list.set_line_height(22);
 	m_list.set_font_size(9);
-
-	//m_list.set_column_data_type(col_filesize, column_data_type_numeric);
-
-	//m_list.set_column_text_align(col_filesize, HDF_RIGHT, false);
 
 	m_list.allow_edit_column(col_item, false);
 	m_list.allow_edit_column(col_value, true);
@@ -772,6 +765,8 @@ void CKoinoToolsDlg::init_list()
 	m_list.set_text(3, col_desc, _T("CodeSign 암호"));
 
 	m_list.set_default_text_color(Gdiplus::Color::DimGray);
+
+	m_list.set_use_own_context_menu(false);
 
 	//CSCListCtrl에서 header height, line height를 주면 간혹 0번 항목이 헤더에 가려진 채로 시작되는 경우가 있다.
 	//뭔가 SetLayout()관련 처리가 부족한 듯 한데 우선 0번 항목을 선택시켜주면 이런 부작용이 나타나진 않는다.
