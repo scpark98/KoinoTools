@@ -61,6 +61,11 @@ public:
 	void					thread_codesign_manifest(bool apply_manifest);
 	bool					m_in_codesigning = false;
 
+	//codesign 완료 시 작업표시줄 버튼을 깜빡였는지(FLASHW_ALL). 사용자가 창을 activate/minimize 하면
+	//이 플래그가 true 일 때만 FLASHW_STOP 으로 깜빡임을 즉시 끈다(불필요한 stop 호출 방지용 가드).
+	bool					m_taskbar_flashing = false;
+	void					stop_taskbar_flash();
+
 	//product 선택, 각 항목 경로 및 존재여부 체크
 	bool					check_valid_condition();
 
@@ -113,6 +118,8 @@ public:
 	CSCStatic			m_static_code_sign_manifest;
 	CSCStatic			m_static_code_sign_no_manifest;
 	afx_msg void OnWindowPosChanged(WINDOWPOS* lpwndpos);
+	afx_msg void OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
+	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnDropFiles(HDROP hDropInfo);
 	CSCListCtrl m_list;
 	CSCTreeCtrl m_tree;

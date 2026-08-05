@@ -83,6 +83,8 @@ BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
 	ON_BN_CLICKED(IDOK, &CKoinoToolsDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDCANCEL, &CKoinoToolsDlg::OnBnClickedCancel)
 	ON_WM_WINDOWPOSCHANGED()
+	ON_WM_ACTIVATE()
+	ON_WM_SIZE()
 	ON_WM_DROPFILES()
 	ON_NOTIFY(TVN_SELCHANGED, IDC_TREE, &CKoinoToolsDlg::OnTvnSelchangedTree)
 	ON_NOTIFY(LVN_ENDLABELEDIT, IDC_LIST, &CKoinoToolsDlg::OnLvnEndLabelEditList)
@@ -329,6 +331,33 @@ void CKoinoToolsDlg::OnWindowPosChanged(WINDOWPOS* lpwndpos)
 	SaveWindowPosition(&theApp, this);
 }
 
+//codesign 완료 알림으로 켜둔 작업표시줄 깜빡임을 사용자 액션 시 즉시 끈다.
+//깜빡이던 상태(m_taskbar_flashing)일 때만 FLASHW_STOP 을 호출한다.
+void CKoinoToolsDlg::stop_taskbar_flash()
+{
+	if (!m_taskbar_flashing)
+		return;
+
+	FlashWindowEx(FLASHW_STOP, 0, 0);
+	m_taskbar_flashing = false;
+}
+
+void CKoinoToolsDlg::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
+{
+	CDialogEx::OnActivate(nState, pWndOther, bMinimized);
+
+	if (nState != WA_INACTIVE)
+		stop_taskbar_flash();
+}
+
+void CKoinoToolsDlg::OnSize(UINT nType, int cx, int cy)
+{
+	CDialogEx::OnSize(nType, cx, cy);
+
+	if (nType == SIZE_MINIMIZED)
+		stop_taskbar_flash();
+}
+
 void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
@@ -493,7 +522,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		//Wait(10000);
 		cmd.Format(_T("\"%s\" sign /sha1 %s /s my /t http://timestamp.digicert.com /fd sha1 /v \"%s\""),
 			m_signtool_path, m_fingerprint, m_files[i]);
-		m_rich.add(-1, _T("#1 phase codesign : %s\n"), cmd);
+		m_rich.add(Gdiplus::Color(Gdiplus::Color::DimGray).ToCOLORREF(), _T("#1 phase codesign : %s\n"), cmd);
 		result = run_command(cmd);
 
 		while (FindWindowByCaption(_T("토큰 로그온"), true) != NULL)
@@ -503,7 +532,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 		cmd.Format(_T("\"%s\" sign /sha1 %s /s my /tr http://timestamp.digicert.com /as /fd SHA256 /td sha256 /v \"%s\""),
 			m_signtool_path, m_fingerprint, m_files[i]);
-		m_rich.add(-1, _T("#2 phase codesign : %s\n"), cmd);
+		m_rich.add(Gdiplus::Color(Gdiplus::Color::DimGray).ToCOLORREF(), _T("#2 phase codesign : %s\n"), cmd);
 		result = run_command(cmd);
 
 		//std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -533,6 +562,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 	//이 멤버는 FLASHWINFO를 채워 ::FlashWindowEx를 호출하는 것이 전부라 워커 스레드에서 호출해도 안전하다.
 	//timeout = 0이면 시스템 기본 깜빡임 주기를 쓴다.
 	FlashWindowEx(FLASHW_ALL, 2, 0);
+	m_taskbar_flashing = true;
 
 	m_in_codesigning = false;
 }
