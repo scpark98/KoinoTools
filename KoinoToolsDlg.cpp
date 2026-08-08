@@ -469,10 +469,10 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 	if (!check_valid_condition())
 		return;
 
-	trace(apply_manifest);
-	trace(m_mt_path);
-	trace(m_signtool_path);
-	trace(m_manifest_folder);
+	sctrace(apply_manifest);
+	sctrace(m_mt_path);
+	sctrace(m_signtool_path);
+	sctrace(m_manifest_folder);
 
 	m_in_codesigning = true;
 	bool error_occured = false;
@@ -713,7 +713,7 @@ void CKoinoToolsDlg::init_tree()
 	for (auto subkey : enum_subkeys)
 	{
 		subkey.Replace(m_reg_product_root + _T("\\"), _T(""));
-		trace(subkey);
+		sctrace(subkey);
 
 		std::deque<CString> token;
 		get_token_str(subkey, token, _T("\\"), false);
@@ -841,7 +841,7 @@ void CKoinoToolsDlg::OnLvnEndLabelEditList(NMHDR* pNMHDR, LRESULT* pResult)
 	NMLVDISPINFO* pDispInfo = reinterpret_cast<NMLVDISPINFO*>(pNMHDR);
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
 	m_product = m_tree.get_selected_item_text(true);
-	trace(m_product);
+	sctrace(m_product);
 
 	int item = m_list.get_recent_edit_item();
 	int subitem = m_list.get_recent_edit_subitem();
@@ -912,7 +912,7 @@ void CKoinoToolsDlg::OnMenuTreeNewItem()
 	m_tree.add_new_item(NULL, _T("새 제품"), true, true);
 
 	m_product = m_tree.get_selected_item_text(true);
-	trace(m_product);
+	sctrace(m_product);
 
 	CString subkey;
 
@@ -1005,14 +1005,14 @@ void CKoinoToolsDlg::OnTvnEndLabelEditTree(NMHDR* pNMHDR, LRESULT* pResult)
 
 	CString old_label = m_tree.get_edit_old_text();
 	CString new_label = m_tree.get_edit_new_text();
-	trace(new_label);
+	sctrace(new_label);
 
 	if (old_label == new_label)
 		return;
 
 	m_product = m_tree.get_selected_item_text(true);
 	m_product = m_product.Left(m_product.ReverseFind('\\'));
-	trace(m_product);
+	sctrace(m_product);
 
 	CString subkey_old;
 	CString subkey_new;
