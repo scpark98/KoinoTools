@@ -304,17 +304,17 @@ void CKoinoToolsDlg::OnBnClickedCancel()
 		if (res == ERROR_SUCCESS)
 		{
 			RegCloseKey(hKey);
-			m_rich.add(blue, _T("success exporting registry info."));
+			m_rich.add(Gdiplus::Color(Gdiplus::Color::Blue),_T("success exporting registry info."));
 		}
 		else
 		{
-			m_rich.add(red, _T("fail to RegSaveKeyEx() for save registry."));
-			m_rich.add(red, _T("%s"), get_error_str(res));
+			m_rich.add(Gdiplus::Color(Gdiplus::Color::Red),_T("fail to RegSaveKeyEx() for save registry."));
+			m_rich.add(Gdiplus::Color(Gdiplus::Color::Red),_T("%s"), get_error_str(res));
 		}
 	}
 	else
 	{
-		m_rich.add(red, _T("fail to RegOpenKeyEx() for export registry."));
+		m_rich.add(Gdiplus::Color(Gdiplus::Color::Red),_T("fail to RegOpenKeyEx() for export registry."));
 	}
 
 	Wait(1000);
@@ -469,10 +469,10 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 	if (!check_valid_condition())
 		return;
 
-	trace(apply_manifest);
-	trace(m_mt_path);
-	trace(m_signtool_path);
-	trace(m_manifest_folder);
+	sctrace(apply_manifest);
+	sctrace(m_mt_path);
+	sctrace(m_signtool_path);
+	sctrace(m_manifest_folder);
 
 	m_in_codesigning = true;
 	bool error_occured = false;
@@ -484,7 +484,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		CString manifest_file = m_manifest_folder + _T("\\") + filename + _T(".manifest");
 		CString result;
 
-		m_rich.add(royalblue, _T("codesign start : %s (%d/%d)...\n"), filename, i + 1, m_files.size());
+		m_rich.add(Gdiplus::Color(Gdiplus::Color::RoyalBlue),_T("codesign start : %s (%d/%d)...\n"), filename, i + 1, m_files.size());
 
 		//파일이 열려있으면 코드사인이 실패하므로 에러로 처리한다.
 		//_taccess()를 써봤으나 0이 리턴되고(사용중이 아니라고 판별)
@@ -493,15 +493,15 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		if (hWnd)
 		{
 			error_occured = true;
-			m_rich.add(red, _T("파일이 사용중이므로 코드사인 할 수 없습니다.\n"));
+			m_rich.add(Gdiplus::Color(Gdiplus::Color::Red),_T("파일이 사용중이므로 코드사인 할 수 없습니다.\n"));
 			break;
 		}
 
 		//우선 해당 파일이 이미 codesign되어 있다면 오류가 발생하는 경우가 있으므로 delcert.exe로 지워준다.
-		m_rich.add(-1, _T("delcert : %s"), filename);
+		m_rich.add(Gdiplus::Color::Transparent,_T("delcert : %s"), filename);
 		cmd.Format(_T("\"%s\\delcert.exe\" \"%s\""), m_signtool_path, m_files[i]);
 		result = run_command(cmd);
-		m_rich.add(blue, _T(" ok\n"));
+		m_rich.add(Gdiplus::Color(Gdiplus::Color::Blue),_T(" ok\n"));
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 
 
@@ -514,7 +514,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 			}
 
 			cmd.Format(_T("\"%s\" -manifest \"%s\" -outputresource:\"%s\""), m_mt_path, manifest_file, m_files[i]);
-			m_rich.add(-1, _T("manifest cmd : %s\n"), cmd);
+			m_rich.add(Gdiplus::Color::Transparent,_T("manifest cmd : %s\n"), cmd);
 			result = run_command(cmd);
 		}
 
@@ -522,7 +522,7 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		//Wait(10000);
 		cmd.Format(_T("\"%s\" sign /sha1 %s /s my /t http://timestamp.digicert.com /fd sha1 /v \"%s\""),
 			m_signtool_path, m_fingerprint, m_files[i]);
-		m_rich.add(Gdiplus::Color(Gdiplus::Color::DimGray).ToCOLORREF(), _T("#1 phase codesign : %s\n"), cmd);
+		m_rich.add(Gdiplus::Color(Gdiplus::Color::DarkGray), _T("#1 phase codesign : %s\n"), cmd);
 		result = run_command(cmd);
 
 		while (FindWindowByCaption(_T("토큰 로그온"), true) != NULL)
@@ -532,14 +532,14 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 		cmd.Format(_T("\"%s\" sign /sha1 %s /s my /tr http://timestamp.digicert.com /as /fd SHA256 /td sha256 /v \"%s\""),
 			m_signtool_path, m_fingerprint, m_files[i]);
-		m_rich.add(Gdiplus::Color(Gdiplus::Color::DimGray).ToCOLORREF(), _T("#2 phase codesign : %s\n"), cmd);
+		m_rich.add(Gdiplus::Color(Gdiplus::Color::DarkGray), _T("#2 phase codesign : %s\n"), cmd);
 		result = run_command(cmd);
 
 		//std::this_thread::sleep_for(std::chrono::seconds(1));
 		while (FindWindowByCaption(_T("토큰 로그온"), true) != NULL)
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-		m_rich.add(royalblue, _T("%s codesign completed.\n"), filename);
+		m_rich.add(Gdiplus::Color(Gdiplus::Color::RoyalBlue),_T("%s codesign completed.\n"), filename);
 	}
 
 	m_thread_auto_password_input = false;
@@ -548,12 +548,12 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 
 	if (error_occured)
 	{
-		m_rich.add(red, _T("All codesign job cancelled.\n"));
+		m_rich.add(Gdiplus::Color(Gdiplus::Color::Red),_T("All codesign job cancelled.\n"));
 	}
 	else
 	{
 		TRACE(_T("codeSign job finished.\n"));
-		m_rich.add(blue, _T("All files codesign completed.\n---------------------------------------\n"));
+		m_rich.add(Gdiplus::Color(Gdiplus::Color::Blue),_T("All files codesign completed.\n---------------------------------------\n"));
 	}
 
 	//20260722 by claude. codesign 중에는 thread_auto_password_input()이 "토큰 로그온" 창을 foreground로 끌어올리므로
@@ -713,7 +713,7 @@ void CKoinoToolsDlg::init_tree()
 	for (auto subkey : enum_subkeys)
 	{
 		subkey.Replace(m_reg_product_root + _T("\\"), _T(""));
-		trace(subkey);
+		sctrace(subkey);
 
 		std::deque<CString> token;
 		get_token_str(subkey, token, _T("\\"), false);
@@ -841,7 +841,7 @@ void CKoinoToolsDlg::OnLvnEndLabelEditList(NMHDR* pNMHDR, LRESULT* pResult)
 	NMLVDISPINFO* pDispInfo = reinterpret_cast<NMLVDISPINFO*>(pNMHDR);
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
 	m_product = m_tree.get_selected_item_text(true);
-	trace(m_product);
+	sctrace(m_product);
 
 	int item = m_list.get_recent_edit_item();
 	int subitem = m_list.get_recent_edit_subitem();
@@ -912,7 +912,7 @@ void CKoinoToolsDlg::OnMenuTreeNewItem()
 	m_tree.add_new_item(NULL, _T("새 제품"), true, true);
 
 	m_product = m_tree.get_selected_item_text(true);
-	trace(m_product);
+	sctrace(m_product);
 
 	CString subkey;
 
@@ -1005,14 +1005,14 @@ void CKoinoToolsDlg::OnTvnEndLabelEditTree(NMHDR* pNMHDR, LRESULT* pResult)
 
 	CString old_label = m_tree.get_edit_old_text();
 	CString new_label = m_tree.get_edit_new_text();
-	trace(new_label);
+	sctrace(new_label);
 
 	if (old_label == new_label)
 		return;
 
 	m_product = m_tree.get_selected_item_text(true);
 	m_product = m_product.Left(m_product.ReverseFind('\\'));
-	trace(m_product);
+	sctrace(m_product);
 
 	CString subkey_old;
 	CString subkey_new;
@@ -1141,12 +1141,12 @@ void CKoinoToolsDlg::OnMenuTreeServiceStop()
 	CString detail;
 	DWORD status_code = 0;
 
-	m_rich.add(-1, _T("try to stop %s...\n"), service_name);
+	m_rich.add(Gdiplus::Color::Transparent,_T("try to stop %s...\n"), service_name);
 	status_code = service_command(service_name, _T("stop"), error_code, &detail);
 
 	CString str;
 	str.Format(_T("status_code = %d(%s), error_code = %d (%s)"), status_code, get_service_status_str(status_code), error_code, detail);
-	m_rich.add(error_code == 0 ? blue : red, _T("%s\n"), str);
+	m_rich.add(error_code == 0 ? Gdiplus::Color(Gdiplus::Color::Blue) : Gdiplus::Color(Gdiplus::Color::Red),_T("%s\n"), str);
 }
 
 void CKoinoToolsDlg::OnMenuTreeServiceRestart()
@@ -1167,12 +1167,12 @@ void CKoinoToolsDlg::OnMenuTreeServiceRestart()
 	CString detail;
 	DWORD status_code = 0;
 
-	m_rich.add(-1, _T("try to restart %s...\n"), service_name);
+	m_rich.add(Gdiplus::Color::Transparent,_T("try to restart %s...\n"), service_name);
 	status_code = service_command(service_name, _T("restart"), error_code, &detail);
 
 	CString str;
 	str.Format(_T("status_code = %d(%s), error_code = %d (%s)"), status_code, get_service_status_str(status_code), error_code, detail);
-	m_rich.add(error_code == 0 ? blue : red, _T("%s\n"), str);
+	m_rich.add(error_code == 0 ? Gdiplus::Color(Gdiplus::Color::Blue) : Gdiplus::Color(Gdiplus::Color::Red),_T("%s\n"), str);
 }
 
 void CKoinoToolsDlg::OnMenuTreeServiceDelete()
@@ -1193,12 +1193,12 @@ void CKoinoToolsDlg::OnMenuTreeServiceDelete()
 	CString detail;
 	DWORD status_code = 0;
 
-	m_rich.add(-1, _T("try to delete %s...\n"), service_name);
+	m_rich.add(Gdiplus::Color::Transparent,_T("try to delete %s...\n"), service_name);
 	status_code = service_command(service_name, _T("delete"), error_code, &detail);
 
 	CString str;
 	str.Format(_T("status_code = %d(%s), error_code = %d (%s)"), status_code, get_service_status_str(status_code), error_code, detail);
-	m_rich.add(error_code == 0 ? blue : red, _T("%s\n"), str);
+	m_rich.add(error_code == 0 ? Gdiplus::Color(Gdiplus::Color::Blue) : Gdiplus::Color(Gdiplus::Color::Red),_T("%s\n"), str);
 }
 
 void CKoinoToolsDlg::OnMenuTreeLogFolder()
@@ -1258,26 +1258,26 @@ void CKoinoToolsDlg::OnMenuTreeDeleteRegUrlSchemeInfo()
 	{
 		status = RegDeleteTree(HKEY_CLASSES_ROOT, url_scheme_protocols[i]);
 		if (status == ERROR_SUCCESS)
-			m_rich.addl(blue, _T("HKEY_CLASSES_ROOT\\%s deleted"), url_scheme_protocols[i]);
+			m_rich.addl(Gdiplus::Color(Gdiplus::Color::Blue),_T("HKEY_CLASSES_ROOT\\%s deleted"), url_scheme_protocols[i]);
 		else if (status == ERROR_FILE_NOT_FOUND)
-			m_rich.addl(blue, _T("HKEY_CLASSES_ROOT\\%s does not exists. skip."), url_scheme_protocols[i]);
+			m_rich.addl(Gdiplus::Color(Gdiplus::Color::Blue),_T("HKEY_CLASSES_ROOT\\%s does not exists. skip."), url_scheme_protocols[i]);
 		else
-			m_rich.addl(red, _T("HKEY_CLASSES_ROOT\\%s delete failed. status = %d"), url_scheme_protocols[i], status);
+			m_rich.addl(Gdiplus::Color(Gdiplus::Color::Red),_T("HKEY_CLASSES_ROOT\\%s delete failed. status = %d"), url_scheme_protocols[i], status);
 
 		status = RegDeleteTree(HKEY_CURRENT_USER, _T("Software\\Classes\\") + url_scheme_protocols[i]);
 		if (status == ERROR_SUCCESS)
-			m_rich.addl(blue, _T("HKEY_CURRENT_USER\\Software\\Classes\\%s deleted"), url_scheme_protocols[i]);
+			m_rich.addl(Gdiplus::Color(Gdiplus::Color::Blue),_T("HKEY_CURRENT_USER\\Software\\Classes\\%s deleted"), url_scheme_protocols[i]);
 		else if (status == ERROR_FILE_NOT_FOUND)
-			m_rich.addl(blue, _T("HKEY_CURRENT_USER\\%s does not exists. skip."), url_scheme_protocols[i]);
+			m_rich.addl(Gdiplus::Color(Gdiplus::Color::Blue),_T("HKEY_CURRENT_USER\\%s does not exists. skip."), url_scheme_protocols[i]);
 		else
-			m_rich.addl(red, _T("HKEY_CURRENT_USER\\Software\\Classes\\%s delete failed"), url_scheme_protocols[i]);
+			m_rich.addl(Gdiplus::Color(Gdiplus::Color::Red),_T("HKEY_CURRENT_USER\\Software\\Classes\\%s delete failed"), url_scheme_protocols[i]);
 
 		status = RegDeleteTree(HKEY_LOCAL_MACHINE, _T("Software\\Classes\\") + url_scheme_protocols[i]);
 		if (status == ERROR_SUCCESS)
-			m_rich.addl(blue, _T("HKEY_LOCAL_MACHINE\\Software\\Classes\\%s deleted"), url_scheme_protocols[i]);
+			m_rich.addl(Gdiplus::Color(Gdiplus::Color::Blue),_T("HKEY_LOCAL_MACHINE\\Software\\Classes\\%s deleted"), url_scheme_protocols[i]);
 		else if (status == ERROR_FILE_NOT_FOUND)
-			m_rich.addl(blue, _T("HKEY_LOCAL_MACHINE\\%s does not exists. skip."), url_scheme_protocols[i]);
+			m_rich.addl(Gdiplus::Color(Gdiplus::Color::Blue),_T("HKEY_LOCAL_MACHINE\\%s does not exists. skip."), url_scheme_protocols[i]);
 		else
-			m_rich.addl(red, _T("HKEY_LOCAL_MACHINE\\Software\\Classes\\%s delete failed"), url_scheme_protocols[i]);
+			m_rich.addl(Gdiplus::Color(Gdiplus::Color::Red),_T("HKEY_LOCAL_MACHINE\\Software\\Classes\\%s delete failed"), url_scheme_protocols[i]);
 	}
 }
