@@ -10,6 +10,7 @@
 
 #include <thread>
 #include <winsvc.h>
+#include <shobjidl.h>	//ITaskbarList3(작업표시줄 progress 표시)
 
 #include "Common/Functions.h"
 #include "Common/system/CCmdLine/CmdLine.h"
@@ -84,7 +85,7 @@ BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
 	ON_BN_CLICKED(IDCANCEL, &CKoinoToolsDlg::OnBnClickedCancel)
 	ON_WM_WINDOWPOSCHANGED()
 	ON_WM_ACTIVATE()
-	ON_WM_SIZE()
+	ON_WM_DESTROY()
 	ON_WM_DROPFILES()
 	ON_NOTIFY(TVN_SELCHANGED, IDC_TREE, &CKoinoToolsDlg::OnTvnSelchangedTree)
 	ON_NOTIFY(LVN_ENDLABELEDIT, IDC_LIST, &CKoinoToolsDlg::OnLvnEndLabelEditList)
@@ -103,6 +104,9 @@ BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
 	ON_COMMAND(ID_MENU_TREE_SERVICE_DELETE, &CKoinoToolsDlg::OnMenuTreeServiceDelete)
 	ON_COMMAND(ID_MENU_TREE_LOG_FOLDER, &CKoinoToolsDlg::OnMenuTreeLogFolder)
 	ON_COMMAND(ID_MENU_TREE_DELETE_REG_URLSCHEME_INFO, &CKoinoToolsDlg::OnMenuTreeDeleteRegUrlSchemeInfo)
+	ON_MESSAGE(WM_APP_CODESIGN_PROGRESS, &CKoinoToolsDlg::OnCodesignProgress)
+	ON_MESSAGE(WM_APP_CODESIGN_DONE, &CKoinoToolsDlg::OnCodesignDone)
+	ON_MESSAGE(WM_APP_SHOW_MSGBOX, &CKoinoToolsDlg::OnShowMsgbox)
 END_MESSAGE_MAP()
 
 
@@ -190,6 +194,15 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	caption.Format(_T("KoinoTools (ver %s)"), get_file_property());
 	SetWindowText(caption);
 
+	//모든 메시지박스에서 공유할 인스턴스 생성(타이틀/아이콘 지정 → 타이틀바 정상 표시).
+	m_msgbox.create(this, _T("KoinoTools"), IDR_MAINFRAME);
+
+	//작업표시줄 progress 표시용 ITaskbarList3(Win7+). COM STA 초기화 후 생성한다.
+	//CoInitialize 가 S_FALSE(이미 초기화)여도 SUCCEEDED 이며, OnDestroy 에서 CoUninitialize 로 짝을 맞춘다.
+	m_com_initialized = SUCCEEDED(CoInitialize(NULL));
+	if (SUCCEEDED(CoCreateInstance(CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_taskbar))))
+		m_taskbar->HrInit();
+
 
 	//CCmdLine test code
 	/*
@@ -260,8 +273,6 @@ HCURSOR CKoinoToolsDlg::OnQueryDragIcon()
 
 void CKoinoToolsDlg::OnTimer(UINT_PTR nIDEvent)
 {
-	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-
 	CDialogEx::OnTimer(nIDEvent);
 }
 
@@ -331,31 +342,90 @@ void CKoinoToolsDlg::OnWindowPosChanged(WINDOWPOS* lpwndpos)
 	SaveWindowPosition(&theApp, this);
 }
 
-//codesign 완료 알림으로 켜둔 작업표시줄 깜빡임을 사용자 액션 시 즉시 끈다.
-//깜빡이던 상태(m_taskbar_flashing)일 때만 FLASHW_STOP 을 호출한다.
-void CKoinoToolsDlg::stop_taskbar_flash()
+//작업표시줄 progress 값/상태를 설정한다. error 면 빨강(TBPF_ERROR), 아니면 녹색(TBPF_NORMAL).
+//(사용자가 창을 activate 하면 reset_taskbar_progress 로 제거)
+void CKoinoToolsDlg::set_taskbar_progress(int percent, bool error /*= false*/)
 {
-	if (!m_taskbar_flashing)
+	if (m_taskbar == nullptr)
 		return;
 
-	FlashWindowEx(FLASHW_STOP, 0, 0);
-	m_taskbar_flashing = false;
+	m_taskbar->SetProgressState(m_hWnd, error ? TBPF_ERROR : TBPF_NORMAL);
+	m_taskbar->SetProgressValue(m_hWnd, (ULONGLONG)percent, 100);
+	m_taskbar_progress_shown = true;
+}
+
+//사용자가 창을 activate 하면 progress 를 제거해 원래 작업표시줄 버튼으로 되돌린다.
+void CKoinoToolsDlg::reset_taskbar_progress()
+{
+	if (m_taskbar == nullptr || !m_taskbar_progress_shown)
+		return;
+
+	//NOPROGRESS 만으로 안 지워지는 경우 대비해 값도 0 으로 내린 뒤 상태를 제거한다.
+	m_taskbar->SetProgressValue(m_hWnd, 0, 100);
+	m_taskbar->SetProgressState(m_hWnd, TBPF_NOPROGRESS);
+	m_taskbar_progress_shown = false;
+	m_codesign_finished = false;
+	logWriteD(_T("reset_taskbar_progress: cleared"));
+}
+
+//AfxMessageBox 대체. 어느 스레드에서 호출해도 SendMessage 로 UI 스레드에 위임하여 공유 멤버 m_msgbox 로 띄운다.
+//SendMessage 는 UI 스레드가 처리를 끝낼 때까지 동기 대기하므로 눌린 버튼 ID 를 그대로 반환할 수 있다.
+//(UI 스레드에서 호출하면 SendMessage 가 곧바로 창 프로시저를 호출하므로 추가 비용/문제 없음)
+int CKoinoToolsDlg::show_message(const CString& text, int type)
+{
+	return (int)SendMessage(WM_APP_SHOW_MSGBOX, (WPARAM)&text, (LPARAM)type);
+}
+
+//WM_APP_SHOW_MSGBOX 핸들러. 항상 UI 스레드에서 실행되므로 m_msgbox 를 안전하게 사용한다.
+LRESULT CKoinoToolsDlg::OnShowMsgbox(WPARAM wParam, LPARAM lParam)
+{
+	const CString& text = *reinterpret_cast<const CString*>(wParam);
+	return (LRESULT)m_msgbox.DoModal(text, (int)lParam);
+}
+
+//워커 스레드가 각 단계(delcert / codesign #1 / #2)마다 PostMessage 로 진행률을 보내고, 여기서 progress 를 갱신한다.
+LRESULT CKoinoToolsDlg::OnCodesignProgress(WPARAM wParam, LPARAM /*lParam*/)
+{
+	set_taskbar_progress((int)wParam);
+	logWriteD(_T("OnCodesignProgress: %d%%"), (int)wParam);
+	return 0;
+}
+
+//codesign 전체 완료 시 실행된다. progress 를 100%(실패면 빨강)로 마무리하고, 완료를 눈에 띄게 알리려 작업표시줄 버튼을 2번 깜빡인다.
+//깜빡임(순간 강조)과 progress(지속 표시)는 독립 API라 동시에 적용된다. 둘 다 사용자가 창을 activate 하면 지워진다.
+LRESULT CKoinoToolsDlg::OnCodesignDone(WPARAM success, LPARAM /*lParam*/)
+{
+	set_taskbar_progress(100, success == 0);
+	m_codesign_finished = true;		//이제부터 사용자 activate/클릭 시 progress 를 0%로 리셋한다.
+	FlashWindowEx(FLASHW_ALL, 2, 0);
+	logWriteD(_T("OnCodesignDone: success=%d, progress 100%%, flash x2"), (int)success);
+	return 0;
 }
 
 void CKoinoToolsDlg::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
 {
 	CDialogEx::OnActivate(nState, pWndOther, bMinimized);
 
-	if (nState != WA_INACTIVE)
-		stop_taskbar_flash();
+	//코드사인이 완전히 끝난 뒤(m_codesign_finished)에만 리셋한다. 코드사인 중 토큰창이 닫히며 생기는
+	//우발적 재활성화로는 진행률이 지워지지 않도록 한다.
+	if (nState != WA_INACTIVE && m_codesign_finished)
+		reset_taskbar_progress();
 }
 
-void CKoinoToolsDlg::OnSize(UINT nType, int cx, int cy)
+void CKoinoToolsDlg::OnDestroy()
 {
-	CDialogEx::OnSize(nType, cx, cy);
+	if (m_taskbar != nullptr)
+	{
+		m_taskbar->Release();
+		m_taskbar = nullptr;
+	}
+	if (m_com_initialized)
+	{
+		CoUninitialize();
+		m_com_initialized = false;
+	}
 
-	if (nType == SIZE_MINIMIZED)
-		stop_taskbar_flash();
+	CDialogEx::OnDestroy();
 }
 
 void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
@@ -365,7 +435,7 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 	delcert_path.Format(_T("%s\\delcert.exe"), m_list.get_text(0, col_value));
 	if (!PathFileExists(delcert_path))
 	{
-		AfxMessageBox(delcert_path + _T("\n\n위 파일이 존재하지 않습니다.\ndelcert.exe가 없을 경우 이미 CodeSign된 파일은 실패할 수 있습니다."));
+		show_message(delcert_path + _T("\n\n위 파일이 존재하지 않습니다.\ndelcert.exe가 없을 경우 이미 CodeSign된 파일은 실패할 수 있습니다."));
 		return;
 	}
 
@@ -442,6 +512,8 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 			//run_process(cmd, true);로 signtool.exe가 실행되면
 			//thread_auto_password_input() 또한 hold 상태가 되어버리므로
 			//둘 다 thread로 돌리도록 수정함.
+			m_codesign_finished = false;	//새 codesign 시작 → 완료 플래그 초기화
+
 			std::thread th0(&CKoinoToolsDlg::thread_auto_password_input, this);
 			th0.detach();
 
@@ -451,6 +523,28 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 		}
 		else if (m_action == action_codesign_no_manifest)
 		{
+			//Agent 실행파일은 반드시 manifest 를 포함해 서명해야 한다. No-Manifest 로 떨구면 강제 진행 여부를 확인한다.
+			bool has_agent = false;
+			for (auto& f : m_files)
+			{
+				CString fn = get_part(f, fn_name);
+				//fn.MakeLower();
+				//if (fn.Find(_T("agent")) >= 0)
+				if (fn == _T("LMMAgent.exe"))
+				{
+					has_agent = true;
+					break;
+				}
+			}
+			if (has_agent &&
+				show_message(_T("LMMAgent 프로그램은 반드시 <b>with <cr=blue>Manifest</cr></b> 방식으로 CodeSign되어야 합니다.\n강제로 <b><cr=red>No Manifest</cr></b>로 CodeSign 하시겠습니까?"),
+					MB_YESNO | MB_ICONWARNING) != IDYES)
+			{
+				return;
+			}
+
+			m_codesign_finished = false;	//새 codesign 시작 → 완료 플래그 초기화
+
 			std::thread th0(&CKoinoToolsDlg::thread_auto_password_input, this);
 			th0.detach();
 
@@ -461,6 +555,18 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 	}
 
 	CDialogEx::OnDropFiles(hDropInfo);
+}
+
+//codesign 단계 실패를 사용자에게 확실히 알린다: 로그창(빨강) + 로그파일(error) + 메시지박스.
+//exit_code 는 mt/signtool 이 반환한 0이 아닌 종료코드, output 은 그 표준출력+표준에러(실제 에러 문구 포함).
+void CKoinoToolsDlg::report_codesign_step_error(LPCTSTR step_name, DWORD exit_code, const CString& output)
+{
+	CString msg;
+	msg.Format(_T("%s 실패 [exit=%u]\n%s"), step_name, exit_code, output);
+
+	m_rich.add(Gdiplus::Color(Gdiplus::Color::Red), _T("%s\n"), msg);
+	logWriteE(_T("%s 실패: exit=%u\n%s"), step_name, exit_code, output);
+	show_message(msg, MB_ICONERROR);
 }
 
 //m_files 파일들을 대상으로 현재 선택된 액션을 취한다.
@@ -476,6 +582,16 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 
 	m_in_codesigning = true;
 	bool error_occured = false;
+
+	//작업표시줄 progress 용. 파일당 3단계(delcert / codesign #1 / #2). 단일 파일이면 33/66/100%.
+	//ITaskbarList3 는 UI 스레드에서만 호출 가능하므로 진행률을 PostMessage 로 UI 스레드에 넘긴다.
+	int completed_steps = 0;
+	const int total_steps = (int)m_files.size() * 3;
+	auto post_progress = [this, &completed_steps, total_steps]()
+	{
+		int pct = (total_steps > 0) ? (completed_steps * 100 / total_steps) : 0;
+		PostMessage(WM_APP_CODESIGN_PROGRESS, (WPARAM)pct, 0);
+	};
 
 	for (int i = 0; i < m_files.size(); i++)
 	{
@@ -500,40 +616,98 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		//우선 해당 파일이 이미 codesign되어 있다면 오류가 발생하는 경우가 있으므로 delcert.exe로 지워준다.
 		m_rich.add(Gdiplus::Color::Transparent,_T("delcert : %s"), filename);
 		cmd.Format(_T("\"%s\\delcert.exe\" \"%s\""), m_signtool_path, m_files[i]);
-		result = run_command(cmd);
+		DWORD rc_del = 0;
+		result = run_command(cmd, INFINITE, &rc_del);
+		//delcert 는 best-effort(미서명 파일이면 지울 게 없어 0이 아닐 수 있음)라 실패로 취급하지 않고 기록만 한다.
+		logWriteD(_T("delcert output (exit=%u):\n%s"), rc_del, result);
+
+		//delcert 프로세스는 run_command 에서 종료를 대기했지만, 종료 직후에도 파일이 잠시 잠겨 있으면
+		//곧바로 이어지는 mt/signtool 이 파일을 열지 못하고 조용히 실패한다(팝업도 안 뜨고 완료로 표시되던 원인).
+		//고정 sleep 대신, 파일 핸들이 완전히 풀려 단독으로 열 수 있을 때까지 기다린 뒤 다음 단계로 진행한다.
+		if (!wait_until_file_writable(m_files[i], 10000))
+		{
+			error_occured = true;
+			m_rich.add(Gdiplus::Color(Gdiplus::Color::Red),_T(" 실패(파일 잠금이 해제되지 않음)\n"));
+			logWriteE(_T("delcert 후 10초 내 파일 잠금 해제 실패: %s"), m_files[i]);
+			break;
+		}
 		m_rich.add(Gdiplus::Color(Gdiplus::Color::Blue),_T(" ok\n"));
-		std::this_thread::sleep_for(std::chrono::seconds(1));
 
 
 		if (apply_manifest)
 		{
 			if (!PathFileExists(manifest_file))
 			{
-				AfxMessageBox(_T("manifest 파일이 존재하지 않습니다.\n\n") + manifest_file);
+				show_message(_T("manifest 파일이 존재하지 않습니다.\n\n") + manifest_file);
 				return;
 			}
 
 			cmd.Format(_T("\"%s\" -manifest \"%s\" -outputresource:\"%s\""), m_mt_path, manifest_file, m_files[i]);
 			m_rich.add(Gdiplus::Color::Transparent,_T("manifest cmd : %s\n"), cmd);
-			result = run_command(cmd);
+			DWORD rc_mt = 0;
+			result = run_command(cmd, INFINITE, &rc_mt);
+			logWriteD(_T("mt output (exit=%u):\n%s"), rc_mt, result);
+			if (rc_mt != 0)
+			{
+				report_codesign_step_error(_T("manifest 삽입(mt.exe)"), rc_mt, result);
+				error_occured = true;
+				break;
+			}
+
+			//mt.exe 도 exe 의 리소스를 수정하므로 동일하게 파일 잠금이 풀린 뒤 서명하도록 한다.
+			if (!wait_until_file_writable(m_files[i], 10000))
+			{
+				error_occured = true;
+				m_rich.add(Gdiplus::Color(Gdiplus::Color::Red),_T("manifest 삽입 후 파일 잠금이 해제되지 않았습니다.\n"));
+				logWriteE(_T("mt 후 10초 내 파일 잠금 해제 실패: %s"), m_files[i]);
+				break;
+			}
 		}
+
+		completed_steps++;	//1단계: delcert(+manifest) 준비 완료
+		post_progress();
 
 		m_thread_auto_password_input_paused = false;
 		//Wait(10000);
 		cmd.Format(_T("\"%s\" sign /sha1 %s /s my /t http://timestamp.digicert.com /fd sha1 /v \"%s\""),
 			m_signtool_path, m_fingerprint, m_files[i]);
 		m_rich.add(Gdiplus::Color(Gdiplus::Color::DarkGray), _T("#1 phase codesign : %s\n"), cmd);
-		result = run_command(cmd);
+		DWORD rc_sign1 = 0;
+		result = run_command(cmd, INFINITE, &rc_sign1);
+		logWriteD(_T("signtool #1 output (exit=%u):\n%s"), rc_sign1, result);
+		if (rc_sign1 != 0)
+		{
+			report_codesign_step_error(_T("#1 phase codesign(signtool)"), rc_sign1, result);
+			error_occured = true;
+			break;
+		}
+
+		completed_steps++;	//2단계: codesign #1 완료
+		post_progress();
 
 		while (FindWindowByCaption(_T("토큰 로그온"), true) != NULL)
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 		m_thread_auto_password_input_paused = false;
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+		//기존엔 여기서 무조건 1초를 기다렸다(#1 직후 파일이 덜 준비된 채 #2 가 실패하는 것을 피하려던 고정 딜레이).
+		//#1 signtool 은 run_command 에서 종료를 대기했으므로, 파일이 단독으로 열리는 즉시 진행하면 된다 → 체감 딜레이 최소화.
+		//혹시 10초 내 안 풀려도 그대로 #2 를 시도하며, 실제 실패는 아래 exit code 검사에서 잡아 보고한다.
+		wait_until_file_writable(m_files[i], 10000);
 		cmd.Format(_T("\"%s\" sign /sha1 %s /s my /tr http://timestamp.digicert.com /as /fd SHA256 /td sha256 /v \"%s\""),
 			m_signtool_path, m_fingerprint, m_files[i]);
 		m_rich.add(Gdiplus::Color(Gdiplus::Color::DarkGray), _T("#2 phase codesign : %s\n"), cmd);
-		result = run_command(cmd);
+		DWORD rc_sign2 = 0;
+		result = run_command(cmd, INFINITE, &rc_sign2);
+		logWriteD(_T("signtool #2 output (exit=%u):\n%s"), rc_sign2, result);
+		if (rc_sign2 != 0)
+		{
+			report_codesign_step_error(_T("#2 phase codesign(signtool)"), rc_sign2, result);
+			error_occured = true;
+			break;
+		}
+
+		completed_steps++;	//3단계: codesign #2 완료
+		post_progress();
 
 		//std::this_thread::sleep_for(std::chrono::seconds(1));
 		while (FindWindowByCaption(_T("토큰 로그온"), true) != NULL)
@@ -557,12 +731,11 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 	}
 
 	//20260722 by claude. codesign 중에는 thread_auto_password_input()이 "토큰 로그온" 창을 foreground로 끌어올리므로
-	//작업이 끝나는 시점에 이 창은 거의 항상 뒤에 있다. 그래서 완료를 작업표시줄 버튼 깜빡임으로 알린다.
-	//CWnd::FlashWindowEx가 전역 ::FlashWindowEx를 가리므로 인자는 (flags, count, timeout) 3개다.
-	//이 멤버는 FLASHWINFO를 채워 ::FlashWindowEx를 호출하는 것이 전부라 워커 스레드에서 호출해도 안전하다.
-	//timeout = 0이면 시스템 기본 깜빡임 주기를 쓴다.
-	FlashWindowEx(FLASHW_ALL, 2, 0);
-	m_taskbar_flashing = true;
+	//작업이 끝나는 시점에 이 창은 거의 항상 뒤에 있다. 그래서 완료를 작업표시줄 progress 100% + 2번 깜빡임으로 알린다.
+	//ITaskbarList3 는 COM STA(=UI 스레드)에서 호출해야 하는데 이 워커 스레드에서는 불가하므로,
+	//PostMessage 로 UI 스레드(OnCodesignDone)에 위임한다. wParam = 성공(1)/실패(0).
+	logWriteD(_T("codesign worker finished. post WM_APP_CODESIGN_DONE (thread=%u)"), ::GetCurrentThreadId());
+	PostMessage(WM_APP_CODESIGN_DONE, error_occured ? 0 : 1, 0);
 
 	m_in_codesigning = false;
 }
@@ -877,6 +1050,15 @@ void CKoinoToolsDlg::OnLvnEndLabelEditList(NMHDR* pNMHDR, LRESULT* pResult)
 
 BOOL CKoinoToolsDlg::PreTranslateMessage(MSG* pMsg)
 {
+	//codesign 완료 후 남은 progress 는 사용자가 창과 상호작용하면 제거한다.
+	//완료 시 앱이 이미 활성 상태면 OnActivate 가 안 오므로(=클릭해도 리셋 안 되던 문제), 클릭/키 입력도 원복 트리거로 삼는다.
+	if (m_codesign_finished &&
+		(pMsg->message == WM_LBUTTONDOWN || pMsg->message == WM_NCLBUTTONDOWN ||
+		 pMsg->message == WM_RBUTTONDOWN || pMsg->message == WM_KEYDOWN))
+	{
+		reset_taskbar_progress();
+	}
+
 	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
 	if (pMsg->message == WM_KEYDOWN)
 	{
@@ -1079,7 +1261,7 @@ void CKoinoToolsDlg::OnMenuLmmSDSEncrypt()
 void CKoinoToolsDlg::OnMenuTreeDelete()
 {
 	CString label = m_tree.get_selected_item_text();
-	int res = AfxMessageBox(label + _T("\n\n위 항목 및 하위 항목들을 모두 삭제합니다.\n항목을 삭제하면 되돌릴 수 없습니다."), MB_OKCANCEL);
+	int res = show_message(label + _T("\n\n위 항목 및 하위 항목들을 모두 삭제합니다.\n항목을 삭제하면 되돌릴 수 없습니다."), MB_OKCANCEL);
 
 	if (res == IDCANCEL)
 		return;
@@ -1215,7 +1397,7 @@ void CKoinoToolsDlg::OnMenuTreeLogFolder()
 	}
 	else
 	{
-		AfxMessageBox(_T("not defined"));
+		show_message(_T("not defined"));
 	}
 }
 
@@ -1249,7 +1431,7 @@ void CKoinoToolsDlg::OnMenuTreeDeleteRegUrlSchemeInfo()
 	}
 	else
 	{
-		AfxMessageBox(_T("not defined"));
+		show_message(_T("not defined"));
 	}
 
 	LSTATUS status;

@@ -6,6 +6,7 @@
 #include "framework.h"
 #include "KoinoTools.h"
 #include "KoinoToolsDlg.h"
+#include "Common/log/SCLog/SCLog.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -35,6 +36,10 @@ CKoinoToolsApp::CKoinoToolsApp()
 
 CKoinoToolsApp theApp;
 
+//SCLog 전역 인스턴스. 생성자에서 pLog=this 로 세팅되어 logWrite* 매크로가 동작한다.
+//기본 위치(실행파일 아래 Log 폴더)에 KoinoTools_yyyymmdd.log 로 기록된다.
+CSCLog gLog;
+
 
 // CKoinoToolsApp 초기화
 
@@ -54,6 +59,9 @@ BOOL CKoinoToolsApp::InitInstance()
 
 	CWinApp::InitInstance();
 
+	//logWriteD 까지 기록되도록 로그 레벨을 DEBUG 로 올리고 시작 로그를 남긴다.
+	gLog.set(_T(""), _T(""), SCLOG_LEVEL_DEBUG);
+	gLog.write_start_log();
 
 	AfxEnableControlContainer();
 

@@ -12,6 +12,18 @@
 #include "Common/CListCtrl/CSCListCtrl/SCListCtrl.h"
 #include "Common/CEdit/SCEdit/SCEdit.h"
 #include "Common/CEdit/RichEditCtrlEx/RichEditCtrlEx.h"
+#include "Common/log/SCLog/SCLog.h"
+#include "Common/messagebox/CSCMessageBox/SCMessageBox.h"
+
+//codesign 진행/완료(워커 스레드)를 UI 스레드로 넘겨 처리하기 위한 사용자 메시지.
+//작업표시줄 progress(ITaskbarList3)는 COM STA 스레드(=UI 스레드)에서 호출해야 하므로 통지를 UI 스레드로 넘긴다.
+#define WM_APP_CODESIGN_PROGRESS	(WM_APP + 1)	//wParam = 진행률(0~100)
+#define WM_APP_CODESIGN_DONE		(WM_APP + 2)	//wParam = 성공(1)/실패(0)
+//메시지박스를 항상 UI 스레드에서 띄우기 위한 메시지. 워커 스레드에서 SendMessage 로 보내면 UI 스레드로 마샬링되어
+//공유 멤버 m_msgbox 를 안전하게 사용할 수 있다. wParam = const CString*(본문), lParam = 버튼/아이콘 타입.
+#define WM_APP_SHOW_MSGBOX			(WM_APP + 3)
+
+struct ITaskbarList3;	//작업표시줄 progress 표시용(Win7+). 정의는 .cpp 의 <shobjidl.h> 에서.
 
 // CKoinoToolsDlg 대화 상자
 class CKoinoToolsDlg : public CDialogEx
@@ -61,10 +73,24 @@ public:
 	void					thread_codesign_manifest(bool apply_manifest);
 	bool					m_in_codesigning = false;
 
-	//codesign 완료 시 작업표시줄 버튼을 깜빡였는지(FLASHW_ALL). 사용자가 창을 activate/minimize 하면
-	//이 플래그가 true 일 때만 FLASHW_STOP 으로 깜빡임을 즉시 끈다(불필요한 stop 호출 방지용 가드).
-	bool					m_taskbar_flashing = false;
-	void					stop_taskbar_flash();
+	//작업표시줄 progress 로 codesign 완료를 알린다. 완료 시 100%, 사용자가 창을 activate 하면 0%(제거).
+	ITaskbarList3*			m_taskbar = nullptr;			//OnInitDialog 에서 생성, OnDestroy 에서 Release
+	bool					m_com_initialized = false;		//CoInitialize 성공 여부(OnDestroy 에서 짝 맞춰 CoUninitialize)
+	bool					m_taskbar_progress_shown = false;
+	//codesign 전체 완료 여부. 완료(=OnCodesignDone) 후에만 사용자 activate/클릭으로 progress 를 0%로 리셋한다.
+	//(코드사인 중에는 토큰창이 닫히며 앱이 우발적으로 재활성화되므로, 그때 리셋되면 진행률이 도중에 지워진다)
+	bool					m_codesign_finished = false;
+	void					set_taskbar_progress(int percent, bool error = false);	//progress 값/상태 설정(error 면 빨강)
+	void					reset_taskbar_progress();		//activate 시 progress 제거
+	//워커 스레드가 각 단계/완료 시 PostMessage 로 보내고, UI 스레드에서 progress 를 갱신한다(COM STA 이므로 UI 스레드 필수).
+	afx_msg LRESULT			OnCodesignProgress(WPARAM wParam, LPARAM lParam);	//wParam=진행률(0~100)
+	afx_msg LRESULT			OnCodesignDone(WPARAM wParam, LPARAM lParam);		//wParam=성공(1)/실패(0): 100%(또는 error) + 2번 깜빡임
+
+	//모든 메시지박스를 이 공유 인스턴스로 띄운다(타이틀/테마 유지). OnInitDialog 에서 create() 로 초기화.
+	CSCMessageBox			m_msgbox;
+	//AfxMessageBox 대체. 어느 스레드에서 호출해도 WM_APP_SHOW_MSGBOX 로 UI 스레드에서 m_msgbox 를 띄우고 버튼 ID 를 반환한다.
+	int						show_message(const CString& text, int type = MB_OK);
+	afx_msg LRESULT			OnShowMsgbox(WPARAM wParam, LPARAM lParam);
 
 	//product 선택, 각 항목 경로 및 존재여부 체크
 	bool					check_valid_condition();
@@ -77,6 +103,9 @@ public:
 	bool					m_thread_auto_password_input_terminated = true;		//thread가 정상적으로 종료되었는지 판별
 
 	void					thread_run_codesign(CString cmd);
+
+	//codesign 각 단계(mt/signtool)가 0이 아닌 종료코드를 반환하면 로그창(빨강)+로그파일+메시지박스로 실패를 알린다.
+	void					report_codesign_step_error(LPCTSTR step_name, DWORD exit_code, const CString& output);
 
 	void					init_tree();
 	int						get_icon_index(CString product_name);
@@ -119,7 +148,7 @@ public:
 	CSCStatic			m_static_code_sign_no_manifest;
 	afx_msg void OnWindowPosChanged(WINDOWPOS* lpwndpos);
 	afx_msg void OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
-	afx_msg void OnSize(UINT nType, int cx, int cy);
+	afx_msg void OnDestroy();
 	afx_msg void OnDropFiles(HDROP hDropInfo);
 	CSCListCtrl m_list;
 	CSCTreeCtrl m_tree;
