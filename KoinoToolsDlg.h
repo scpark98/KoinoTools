@@ -66,11 +66,13 @@ public:
 	enum ACTION_ID
 	{
 		action_no_action = 0,
-		action_codesign_manifest,
-		action_codesign_no_manifest,
+		action_codesign,	//No-Manifest/Manifest 통합 드롭. 파일별 자동 라우팅.
 	};
 	int						m_action = action_no_action;
-	void					thread_codesign_manifest(bool apply_manifest);
+	//통합 드롭으로 받은 m_files 를 파일별로 서명한다. manifest 여부는 is_manifest_required() 로 파일마다 판별.
+	void					thread_codesign();
+	//해당 실행파일이 반드시 with-Manifest 로 서명되어야 하는지(LMMAgent.exe 등 지정 목록). 목록 외는 No-Manifest.
+	bool					is_manifest_required(const CString& filename) const;
 	bool					m_in_codesigning = false;
 
 	//작업표시줄 progress 로 codesign 완료를 알린다. 완료 시 100%, 사용자가 창을 activate 하면 0%(제거).
@@ -144,8 +146,8 @@ public:
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedCancel();
-	CSCStatic			m_static_code_sign_manifest;
-	CSCStatic			m_static_code_sign_no_manifest;
+	//No-Manifest/Manifest 두 드롭 영역을 하나로 통합. 남는 단일 드롭 타깃(리소스 ID 는 기존 NO_MANIFEST 유지).
+	CSCStatic			m_static_code_sign;
 	afx_msg void OnWindowPosChanged(WINDOWPOS* lpwndpos);
 	afx_msg void OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
 	afx_msg void OnDestroy();

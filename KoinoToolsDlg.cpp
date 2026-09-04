@@ -67,8 +67,7 @@ CKoinoToolsDlg::CKoinoToolsDlg(CWnd* pParent /*=nullptr*/)
 void CKoinoToolsDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_STATIC_CODE_SIGN_MANIFEST, m_static_code_sign_manifest);
-	DDX_Control(pDX, IDC_STATIC_CODE_SIGN_NO_MANIFEST, m_static_code_sign_no_manifest);
+	DDX_Control(pDX, IDC_STATIC_CODE_SIGN, m_static_code_sign);
 	DDX_Control(pDX, IDC_LIST, m_list);
 	DDX_Control(pDX, IDC_TREE, m_tree);
 	DDX_Control(pDX, IDC_RICH, m_rich);
@@ -150,17 +149,11 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 
 	//단락 모드는 set_tagged_text 가 호출되는 시점의 색상·폰트·line_spacing 로 단락을 build 하므로
 	//모든 setter 가 반드시 set_tagged_text 보다 먼저 와야 한다.
-	m_static_code_sign_no_manifest.set_back_color(Gdiplus::Color::Ivory);
-	m_static_code_sign_no_manifest.set_round(8, Gdiplus::Color::RoyalBlue, get_sys_color(COLOR_3DFACE));
-	m_static_code_sign_no_manifest.set_font_size(10);
-	m_static_code_sign_no_manifest.set_tagged_text(_T("Drop exe files here for<br><b>CodeSign with <cr=red>No Manifest"));
-	m_static_code_sign_no_manifest.set_tooltip_text(_T("manifest를 적용하지 않고 CodeSign할 파일들을 여기에 drag&drop 합니다.\n(주의 : LMMAgent.exe는 반드시 manifest를 포함하여 CodeSign 해야 함!)"));
-
-	m_static_code_sign_manifest.set_back_color(Gdiplus::Color::AntiqueWhite);
-	m_static_code_sign_manifest.set_round(8, Gdiplus::Color::IndianRed, get_sys_color(COLOR_3DFACE));
-	m_static_code_sign_manifest.set_font_size(10);
-	m_static_code_sign_manifest.set_tagged_text(_T("Drop exe files here for<br><b>CodeSign with <cr=blue>Manifest"));
-	m_static_code_sign_manifest.set_tooltip_text(_T("manifest를 적용하여 CodeSign할 파일들을 여기에 drag&drop 합니다.\n(주의 : LMMAgent.exe는 반드시 manifest를 포함하여 CodeSign 해야 함!)"));
+	m_static_code_sign.set_back_color(Gdiplus::Color::Ivory);
+	m_static_code_sign.set_round(8, Gdiplus::Color::RoyalBlue, get_sys_color(COLOR_3DFACE));
+	m_static_code_sign.set_font_size(10);
+	m_static_code_sign.set_tagged_text(_T("Drop exe files here for<br><b>CodeSign</b>"));
+	m_static_code_sign.set_tooltip_text(_T("CodeSign할 실행파일들을 여기에 drag&drop 합니다.\nLMMAgent.exe 등 with Manifest 필수 파일은 자동으로 manifest를 포함해 서명하고,\n그 외 파일은 No Manifest 방식으로 서명합니다."));
 
 	init_tree();
 	init_list();
@@ -173,8 +166,7 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	int min_size = 160;
 	m_vert_splitter.set_type(CControlSplitter::CS_VERT, true, Gdiplus::Color::LightGray);
 	m_vert_splitter.AddToTopOrLeftCtrls(IDC_TREE, min_size);
-	m_vert_splitter.AddToBottomOrRightCtrls(IDC_STATIC_CODE_SIGN_NO_MANIFEST, 0, 0, SPF_LEFT);
-	m_vert_splitter.AddToBottomOrRightCtrls(IDC_STATIC_CODE_SIGN_MANIFEST, 0, 0, SPF_LEFT);
+	m_vert_splitter.AddToBottomOrRightCtrls(IDC_STATIC_CODE_SIGN, 0, 0, SPF_LEFT);
 	m_vert_splitter.AddToBottomOrRightCtrls(IDC_LIST, 320);
 	m_vert_splitter.AddToBottomOrRightCtrls(IDC_RICH);
 	//m_vert_splitter.AddToBottomOrRightCtrls(IDC_CHECK);
@@ -453,17 +445,9 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 
 	// Find child control at this point
 	CWnd* pCtrl = ChildWindowFromPoint(pt);
-	if (pCtrl == &m_static_code_sign_manifest)
-	{
-		m_action = action_codesign_manifest;
-		TRACE(_T("m_static_code_sign_manifest\n"));
-	}
-	else if (pCtrl == &m_static_code_sign_no_manifest)
-	{
-		m_action = action_codesign_no_manifest;
-		TRACE(_T("m_static_code_sign_no_manifest\n"));
-	}
-	else if (pCtrl == &m_list)
+	//listctrl 은 signtool 경로 지정 등 별도 용도라 따로 처리하고, 그 외 영역(통합 드롭 static 포함)에
+	//떨구면 통합 codesign 으로 처리한다. 파일별 with/without manifest 는 is_manifest_required() 로 자동 결정.
+	if (pCtrl == &m_list)
 	{
 		int item;
 		int sub_item;
@@ -490,6 +474,11 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 			return;
 		}
 	}
+	else
+	{
+		m_action = action_codesign;
+	}
+
 
 	m_files.clear();
 
@@ -503,55 +492,21 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 		m_files.push_back(sfile);
 	}
 
-	if (m_files.size())
+	if (m_files.size() && m_action == action_codesign)
 	{
-		if (m_action == action_codesign_manifest)
-		{
-			//처음엔 thread_auto_password_input()만 thread로 돌리고
-			//codesign_manifest()는 그냥 함수 호출로 실행했으나
-			//run_process(cmd, true);로 signtool.exe가 실행되면
-			//thread_auto_password_input() 또한 hold 상태가 되어버리므로
-			//둘 다 thread로 돌리도록 수정함.
-			m_codesign_finished = false;	//새 codesign 시작 → 완료 플래그 초기화
+		//처음엔 thread_auto_password_input()만 thread로 돌리고
+		//codesign_manifest()는 그냥 함수 호출로 실행했으나
+		//run_process(cmd, true);로 signtool.exe가 실행되면
+		//thread_auto_password_input() 또한 hold 상태가 되어버리므로
+		//둘 다 thread로 돌리도록 수정함.
+		m_codesign_finished = false;	//새 codesign 시작 → 완료 플래그 초기화
 
-			std::thread th0(&CKoinoToolsDlg::thread_auto_password_input, this);
-			th0.detach();
+		std::thread th0(&CKoinoToolsDlg::thread_auto_password_input, this);
+		th0.detach();
 
-			//codesign_manifest(true);
-			std::thread th1(&CKoinoToolsDlg::thread_codesign_manifest, this, true);
-			th1.detach();
-		}
-		else if (m_action == action_codesign_no_manifest)
-		{
-			//Agent 실행파일은 반드시 manifest 를 포함해 서명해야 한다. No-Manifest 로 떨구면 강제 진행 여부를 확인한다.
-			bool has_agent = false;
-			for (auto& f : m_files)
-			{
-				CString fn = get_part(f, fn_name);
-				//fn.MakeLower();
-				//if (fn.Find(_T("agent")) >= 0)
-				if (fn == _T("LMMAgent.exe"))
-				{
-					has_agent = true;
-					break;
-				}
-			}
-			if (has_agent &&
-				show_message(_T("LMMAgent 프로그램은 반드시 <b>with <cr=blue>Manifest</cr></b> 방식으로 CodeSign되어야 합니다.\n강제로 <b><cr=red>No Manifest</cr></b>로 CodeSign 하시겠습니까?"),
-					MB_YESNO | MB_ICONWARNING) != IDYES)
-			{
-				return;
-			}
-
-			m_codesign_finished = false;	//새 codesign 시작 → 완료 플래그 초기화
-
-			std::thread th0(&CKoinoToolsDlg::thread_auto_password_input, this);
-			th0.detach();
-
-			//codesign_manifest(false);
-			std::thread th1(&CKoinoToolsDlg::thread_codesign_manifest, this, false);
-			th1.detach();
-		}
+		//파일별로 manifest 필수 여부를 판별해 서명한다(LMMAgent.exe 등은 with Manifest, 나머지는 No Manifest).
+		std::thread th1(&CKoinoToolsDlg::thread_codesign, this);
+		th1.detach();
 	}
 
 	CDialogEx::OnDropFiles(hDropInfo);
@@ -569,13 +524,30 @@ void CKoinoToolsDlg::report_codesign_step_error(LPCTSTR step_name, DWORD exit_co
 	show_message(msg, MB_ICONERROR);
 }
 
-//m_files 파일들을 대상으로 현재 선택된 액션을 취한다.
-void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
+//반드시 with Manifest 로 서명해야 하는 실행파일 목록. 여기에 파일명(대소문자 무관)만 추가하면 자동으로 with Manifest 로 서명된다.
+//목록에 없는 파일은 모두 No Manifest 로 서명된다.
+bool CKoinoToolsDlg::is_manifest_required(const CString& filename) const
+{
+	static const LPCTSTR manifest_required[] =
+	{
+		_T("LMMAgent.exe"),
+	};
+
+	for (auto name : manifest_required)
+	{
+		if (filename.CompareNoCase(name) == 0)
+			return true;
+	}
+	return false;
+}
+
+//통합 드롭으로 받은 m_files 를 서명한다. manifest 여부는 파일마다 is_manifest_required() 로 판별한다
+//(LMMAgent.exe 등 with-Manifest 필수 파일은 with Manifest, 그 외는 No Manifest).
+void CKoinoToolsDlg::thread_codesign()
 {
 	if (!check_valid_condition())
 		return;
 
-	sctrace(apply_manifest);
 	sctrace(m_mt_path);
 	sctrace(m_signtool_path);
 	sctrace(m_manifest_folder);
@@ -600,7 +572,13 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		CString manifest_file = m_manifest_folder + _T("\\") + filename + _T(".manifest");
 		CString result;
 
-		m_rich.add(Gdiplus::Color(Gdiplus::Color::RoyalBlue),_T("codesign start : %s (%d/%d)...\n"), filename, i + 1, m_files.size());
+		//파일별 자동 라우팅: LMMAgent.exe 등 필수 목록은 with Manifest, 나머지는 No Manifest.
+		bool apply_manifest = is_manifest_required(filename);
+
+		//모드(with/No Manifest)만 orange 로 강조해 나머지 문장과 구분한다(색상별로 add 를 나눔).
+		m_rich.add(Gdiplus::Color(Gdiplus::Color::RoyalBlue), _T("codesign start : %s ("), filename);
+		m_rich.add(Gdiplus::Color(Gdiplus::Color::Orange), apply_manifest ? _T("with Manifest") : _T("No Manifest"));
+		m_rich.add(Gdiplus::Color(Gdiplus::Color::RoyalBlue), _T(") (%d/%d)...\n"), i + 1, m_files.size());
 
 		//파일이 열려있으면 코드사인이 실패하므로 에러로 처리한다.
 		//_taccess()를 써봤으나 0이 리턴되고(사용중이 아니라고 판별)
@@ -638,8 +616,12 @@ void CKoinoToolsDlg::thread_codesign_manifest(bool apply_manifest)
 		{
 			if (!PathFileExists(manifest_file))
 			{
-				show_message(_T("manifest 파일이 존재하지 않습니다.\n\n") + manifest_file);
-				return;
+				//return 으로 빠지면 완료 통지(WM_APP_CODESIGN_DONE)·progress 리셋이 누락되므로 error 로 처리하고 중단한다.
+				error_occured = true;
+				m_rich.add(Gdiplus::Color(Gdiplus::Color::Red), _T("manifest 파일이 존재하지 않습니다.\n%s\n"), manifest_file);
+				logWriteE(_T("manifest 파일 없음: %s"), manifest_file);
+				show_message(_T("manifest 파일이 존재하지 않습니다.\n\n") + manifest_file, MB_ICONERROR);
+				break;
 			}
 
 			cmd.Format(_T("\"%s\" -manifest \"%s\" -outputresource:\"%s\""), m_mt_path, manifest_file, m_files[i]);

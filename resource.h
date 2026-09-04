@@ -24,6 +24,7 @@
 #define IDC_TREE                        1001
 #define IDC_STATIC_CODE_SIGN_MANIFEST   1002
 #define IDC_STATIC_CODE_SIGN_NO_MANIFEST 1003
+#define IDC_STATIC_CODE_SIGN            1003
 #define IDC_LIST                        1004
 #define IDC_STATIC_CODE_SIGN_MANIFEST2  1005
 #define IDC_RICH                        1006

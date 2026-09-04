@@ -111,6 +111,15 @@
     <ClInclude Include="$(CommonLibDir)\data_structure\SCParagraph\SCParagraph.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="$(CommonLibDir)\log\SCLog\SCLog.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\messagebox\CSCMessageBox\SCMessageBox.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CToolTipCtrl\CSCToolTipCtrl\SCToolTipCtrl.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="KoinoTools.cpp">
@@ -186,6 +195,15 @@
       <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="$(CommonLibDir)\data_structure\SCParagraph\SCParagraph.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="$(CommonLibDir)\log\SCLog\SCLog.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\messagebox\CSCMessageBox\SCMessageBox.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CToolTipCtrl\CSCToolTipCtrl\SCToolTipCtrl.cpp">
       <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>
