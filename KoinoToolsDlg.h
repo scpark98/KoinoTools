@@ -63,13 +63,7 @@ public:
 		project_remote_sdk,
 	};
 
-	enum ACTION_ID
-	{
-		action_no_action = 0,
-		action_codesign,	//No-Manifest/Manifest 통합 드롭. 파일별 자동 라우팅.
-	};
-	int						m_action = action_no_action;
-	//통합 드롭으로 받은 m_files 를 파일별로 서명한다. manifest 여부는 is_manifest_required() 로 파일마다 판별.
+	//드롭으로 받은 m_files 를 파일별로 서명한다. manifest 여부는 is_manifest_required() 로 파일마다 판별.
 	void					thread_codesign();
 	//해당 실행파일이 반드시 with-Manifest 로 서명되어야 하는지(LMMAgent.exe 등 지정 목록). 목록 외는 No-Manifest.
 	bool					is_manifest_required(const CString& filename) const;
@@ -134,7 +128,8 @@ public:
 
 // 구현입니다.
 protected:
-	HICON m_hIcon;
+	HICON m_hIcon;			//큰 아이콘 (SM_CXICON) — 작업표시줄 / Alt-Tab.
+	HICON m_hIcon_small;	//작은 아이콘 (SM_CXSMICON) — 타이틀바 / 작업표시줄 축소 표시.
 
 	// 생성된 메시지 맵 함수
 	virtual BOOL OnInitDialog();
@@ -148,6 +143,7 @@ public:
 	afx_msg void OnBnClickedCancel();
 	//No-Manifest/Manifest 두 드롭 영역을 하나로 통합. 남는 단일 드롭 타깃(리소스 ID 는 기존 NO_MANIFEST 유지).
 	CSCStatic			m_static_code_sign;
+	afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
 	afx_msg void OnWindowPosChanged(WINDOWPOS* lpwndpos);
 	afx_msg void OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
 	afx_msg void OnDestroy();

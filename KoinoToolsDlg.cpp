@@ -61,7 +61,14 @@ END_MESSAGE_MAP()
 CKoinoToolsDlg::CKoinoToolsDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_KOINOTOOLS_DIALOG, pParent)
 {
-	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	//20260908 by claude. LoadIcon 은 크기를 못 고른다 — 항상 SM_CXICON(큰 아이콘) 한 장만 로드한다.
+	//그것을 작은 아이콘 자리에도 쓰면 타이틀바·작업표시줄의 16px 자리가 .ico 안의 전용 16x16 대신
+	//32x32 를 축소한 그림이 되어 흐려진다. 크기별로 따로 로드해 각 자리에 맞는 이미지를 쓴다.
+	//LR_SHARED — 시스템 메트릭 크기로 로드하는 표준 경우라 시스템이 캐시·해제한다(DestroyIcon 금지).
+	m_hIcon = (HICON)::LoadImage(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_MAINFRAME), IMAGE_ICON,
+		::GetSystemMetrics(SM_CXICON), ::GetSystemMetrics(SM_CYICON), LR_DEFAULTCOLOR | LR_SHARED);
+	m_hIcon_small = (HICON)::LoadImage(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_MAINFRAME), IMAGE_ICON,
+		::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR | LR_SHARED);
 }
 
 void CKoinoToolsDlg::DoDataExchange(CDataExchange* pDX)
@@ -71,7 +78,6 @@ void CKoinoToolsDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_LIST, m_list);
 	DDX_Control(pDX, IDC_TREE, m_tree);
 	DDX_Control(pDX, IDC_RICH, m_rich);
-	DDX_Control(pDX, IDC_EDIT1, m_edit1);
 	DDX_Control(pDX, IDC_BUTTON_SPLITTER, m_vert_splitter);
 }
 
@@ -82,6 +88,7 @@ BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
 	ON_WM_TIMER()
 	ON_BN_CLICKED(IDOK, &CKoinoToolsDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDCANCEL, &CKoinoToolsDlg::OnBnClickedCancel)
+	ON_WM_GETMINMAXINFO()
 	ON_WM_WINDOWPOSCHANGED()
 	ON_WM_ACTIVATE()
 	ON_WM_DESTROY()
@@ -138,11 +145,12 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	// 이 대화 상자의 아이콘을 설정합니다.  응용 프로그램의 주 창이 대화 상자가 아닐 경우에는
 	//  프레임워크가 이 작업을 자동으로 수행합니다.
 	SetIcon(m_hIcon, TRUE);			// 큰 아이콘을 설정합니다.
-	SetIcon(m_hIcon, FALSE);		// 작은 아이콘을 설정합니다.
+	SetIcon(m_hIcon_small, FALSE);	// 작은 아이콘을 설정합니다.
 
 	// TODO: 여기에 추가 초기화 작업을 추가합니다.
 	m_resize.Create(this);
 	m_resize.Add(IDC_TREE, 0, 0, 0, 100);
+	m_resize.Add(IDC_STATIC_CODE_SIGN, 0, 0, 100, 0);
 	m_resize.Add(IDC_LIST, 0, 0, 100, 0);
 	m_resize.Add(IDC_RICH, 0, 0, 100, 100);
 	m_resize.Add(IDC_BUTTON_SPLITTER, 0, 0, 0, 100);
@@ -152,8 +160,8 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	m_static_code_sign.set_back_color(Gdiplus::Color::Ivory);
 	m_static_code_sign.set_round(8, Gdiplus::Color::RoyalBlue, get_sys_color(COLOR_3DFACE));
 	m_static_code_sign.set_font_size(10);
-	m_static_code_sign.set_tagged_text(_T("Drop exe files here for<br><b>CodeSign</b>"));
-	m_static_code_sign.set_tooltip_text(_T("CodeSign할 실행파일들을 여기에 drag&drop 합니다.\nLMMAgent.exe 등 with Manifest 필수 파일은 자동으로 manifest를 포함해 서명하고,\n그 외 파일은 No Manifest 방식으로 서명합니다."));
+	m_static_code_sign.set_tagged_text(_T("<sz=14>Drop exe files for <b><cr=royalblue>CodeSign</b>"));
+	m_static_code_sign.set_tooltip_text(_T("CodeSign할 실행 파일들을 Drag&Drop 합니다.\nLMMAgent.exe 등 <cr=crimson><b>with Manifest</b></cr> 필수 파일은 자동으로 manifest를 포함해 서명하고, 그 외 파일은 <cr=royalblue><b>No Manifest</b></cr> 방식으로 서명합니다."));
 
 	init_tree();
 	init_list();
@@ -270,8 +278,6 @@ void CKoinoToolsDlg::OnTimer(UINT_PTR nIDEvent)
 
 void CKoinoToolsDlg::OnBnClickedOk()
 {
-	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	CDialogEx::OnOK();
 }
 
 void CKoinoToolsDlg::OnBnClickedCancel()
@@ -324,6 +330,16 @@ void CKoinoToolsDlg::OnBnClickedCancel()
 	*/
 
 	CDialogEx::OnCancel();
+}
+
+//20260907 by claude. 최소 창 크기 제한. 이 프로젝트는 DPI-unaware 라 OS 가 논리 픽셀로 가상화해 주므로
+//배율과 무관하게 이 값을 그대로 쓴다.
+void CKoinoToolsDlg::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
+{
+	lpMMI->ptMinTrackSize.x = 820;
+	lpMMI->ptMinTrackSize.y = 530;
+
+	CDialogEx::OnGetMinMaxInfo(lpMMI);
 }
 
 void CKoinoToolsDlg::OnWindowPosChanged(WINDOWPOS* lpwndpos)
@@ -431,55 +447,12 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 		return;
 	}
 
-	m_action = action_no_action;
-
 	TCHAR sfile[MAX_PATH];
 	int count = DragQueryFile(hDropInfo, 0xffffffff, NULL, 0);
 
-	POINT pt;
-	DragQueryPoint(hDropInfo, &pt);
-
-	// Convert to client coordinates of main window
-	//::ClientToScreen(m_hWnd, &pt);        // absolute screen
-	//::ScreenToClient(m_hWnd, &pt);        // back to dialog client coords (safer)
-
-	// Find child control at this point
-	CWnd* pCtrl = ChildWindowFromPoint(pt);
-	//listctrl 은 signtool 경로 지정 등 별도 용도라 따로 처리하고, 그 외 영역(통합 드롭 static 포함)에
-	//떨구면 통합 codesign 으로 처리한다. 파일별 with/without manifest 는 is_manifest_required() 로 자동 결정.
-	if (pCtrl == &m_list)
-	{
-		int item;
-		int sub_item;
-		CRect rlist;
-		m_list.GetWindowRect(rlist);
-		ScreenToClient(rlist);
-
-		pt.x -= rlist.left;
-		pt.y -= rlist.top;
-		m_list.hit_test(pt, item, sub_item, true);
-		if (item == 0)
-		{
-			DragQueryFile(hDropInfo, 0, sfile, MAX_PATH);
-
-			CString path = sfile;
-			theApp.WriteProfileString(_T("product\\") + m_product, _T("signtool path"), path);
-
-			m_list.set_text(0, col_value, path);
-
-			m_mt_path = path + _T("\\mt.exe");
-			m_signtool_path = path + _T("\\signtool.exe");
-
-			check_valid_condition();
-			return;
-		}
-	}
-	else
-	{
-		m_action = action_codesign;
-	}
-
-
+	//20260908 by claude. 떨어뜨린 위치를 따지지 않는다 — 어디에 떨구든 codesign 이다.
+	//전에는 리스트 위에 떨구면 그 폴더를 signtool 경로로 넣었는데, 실행파일을 리스트에 잘못 떨어뜨리면
+	//경로 설정이 엉뚱한 값으로 덮여 다음 서명이 조용히 실패했다. 경로는 리스트에서 직접 입력한다.
 	m_files.clear();
 
 	for (int i = 0; i < count; i++)
@@ -492,7 +465,7 @@ void CKoinoToolsDlg::OnDropFiles(HDROP hDropInfo)
 		m_files.push_back(sfile);
 	}
 
-	if (m_files.size() && m_action == action_codesign)
+	if (m_files.size())
 	{
 		//처음엔 thread_auto_password_input()만 thread로 돌리고
 		//codesign_manifest()는 그냥 함수 호출로 실행했으나
@@ -961,7 +934,8 @@ void CKoinoToolsDlg::init_list()
 void CKoinoToolsDlg::init_rich()
 {
 	m_rich.show_time_info(false);
-	m_rich.set_line_spacing(1);
+	m_rich.set_line_spacing(1.0f);
+	m_rich.set_default_text_color(Gdiplus::Color::DimGray);
 }
 
 void CKoinoToolsDlg::OnTvnSelchangedTree(NMHDR* pNMHDR, LRESULT* pResult)

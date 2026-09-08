@@ -28,7 +28,6 @@
 #define IDC_LIST                        1004
 #define IDC_STATIC_CODE_SIGN_MANIFEST2  1005
 #define IDC_RICH                        1006
-#define IDC_EDIT1                       1007
 #define IDC_EDIT_ENCRYPTED              1008
 #define IDC_EDIT_PLAIN                  1009
 #define IDC_STATIC_PLAIN                1010
