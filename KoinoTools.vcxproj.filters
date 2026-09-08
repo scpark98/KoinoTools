@@ -48,6 +48,12 @@
     <ClInclude Include="$(CommonLibDir)\Functions.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="$(CommonLibDir)\system\CSCSelfPatch\SCSelfPatch.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="$(CommonLibDir)\zip\zip\unzip.h">
+      <Filter>Common</Filter>
+    </ClInclude>
     <ClInclude Include="$(CommonLibDir)\ResizeCtrl.h">
       <Filter>Common</Filter>
     </ClInclude>
@@ -111,13 +117,13 @@
     <ClInclude Include="$(CommonLibDir)\data_structure\SCParagraph\SCParagraph.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="..\Common\CToolTipCtrl\CSCToolTipCtrl\SCToolTipCtrl.h">
+      <Filter>Common</Filter>
+    </ClInclude>
     <ClInclude Include="$(CommonLibDir)\log\SCLog\SCLog.h">
-      <Filter>헤더 파일</Filter>
+      <Filter>Common</Filter>
     </ClInclude>
     <ClInclude Include="..\Common\messagebox\CSCMessageBox\SCMessageBox.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Common\CToolTipCtrl\CSCToolTipCtrl\SCToolTipCtrl.h">
       <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>
@@ -135,6 +141,12 @@
       <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="$(CommonLibDir)\Functions.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="$(CommonLibDir)\system\CSCSelfPatch\SCSelfPatch.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="$(CommonLibDir)\zip\zip\unzip.cpp">
       <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="$(CommonLibDir)\ResizeCtrl.cpp">
@@ -197,13 +209,13 @@
     <ClCompile Include="$(CommonLibDir)\data_structure\SCParagraph\SCParagraph.cpp">
       <Filter>Common</Filter>
     </ClCompile>
+    <ClCompile Include="..\Common\CToolTipCtrl\CSCToolTipCtrl\SCToolTipCtrl.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
     <ClCompile Include="$(CommonLibDir)\log\SCLog\SCLog.cpp">
-      <Filter>소스 파일</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\messagebox\CSCMessageBox\SCMessageBox.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Common\CToolTipCtrl\CSCToolTipCtrl\SCToolTipCtrl.cpp">
       <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>

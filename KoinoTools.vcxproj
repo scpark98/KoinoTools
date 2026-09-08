@@ -236,6 +236,8 @@
     <ClInclude Include="$(CommonLibDir)\data_structure\SCParagraph\SCParagraph.h" />
     <ClInclude Include="$(CommonLibDir)\device\keyboard\SCKeyInput\SCKeyInput.h" />
     <ClInclude Include="$(CommonLibDir)\Functions.h" />
+    <ClInclude Include="$(CommonLibDir)\system\CSCSelfPatch\SCSelfPatch.h" />
+    <ClInclude Include="$(CommonLibDir)\zip\zip\unzip.h" />
     <ClInclude Include="$(CommonLibDir)\ResizeCtrl.h" />
     <ClInclude Include="$(CommonLibDir)\SCGdiplusBitmap.h" />
     <ClInclude Include="$(CommonLibDir)\SeedProvider.h" />
@@ -352,6 +354,18 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="$(CommonLibDir)\Functions.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(CommonLibDir)\system\CSCSelfPatch\SCSelfPatch.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(CommonLibDir)\zip\zip\unzip.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>

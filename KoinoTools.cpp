@@ -45,6 +45,13 @@ CSCLog gLog;
 
 BOOL CKoinoToolsApp::InitInstance()
 {
+	//20260907 by claude. 설치 폴더로 옮겨 심기 + 새 버전 검사. UI 초기화보다 먼저 한다 —
+	//옮기거나 패치하는 경우에는 창을 띄우지 않고 죽고, 배치파일이 이어서 새 exe 를 띄운다.
+	m_self_patch.server_path = _T("/download/tools/KoinoTools/KoinoTools");
+
+	if (m_self_patch.startup())
+		return FALSE;
+
 	AfxInitRichEdit2();
 	// TODO: richedit2 라이브러리를 초기화하려면 AfxInitRichEdit2()을(를) 호출합니다.\n"
 	// Windows XP에서는 InitCommonControlsEx()를 필요로 합니다.
@@ -115,3 +122,10 @@ BOOL CKoinoToolsApp::InitInstance()
 	return FALSE;
 }
 
+int CKoinoToolsApp::ExitInstance()
+{
+	//20260907 by claude. 교체하지 못하고 남은 <exe>_ 가 있으면 여기서 한 번 더 시도한다.
+	m_self_patch.shutdown();
+
+	return CWinApp::ExitInstance();
+}
