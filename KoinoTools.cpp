@@ -45,8 +45,8 @@ CSCLog gLog;
 
 BOOL CKoinoToolsApp::InitInstance()
 {
-	//20260907 by claude. 설치 폴더로 옮겨 심기 + 새 버전 검사. UI 초기화보다 먼저 한다 —
-	//옮기거나 패치하는 경우에는 창을 띄우지 않고 죽고, 배치파일이 이어서 새 exe 를 띄운다.
+	//20260907 by claude. 새 버전 검사. 교체는 실행한 그 자리에서 한다. UI 초기화보다 먼저 한다 —
+	//패치하는 경우에는 창을 띄우지 않고 죽고, 배치파일이 이어서 새 exe 를 띄운다.
 	m_self_patch.server_path = _T("/download/tools/KoinoTools/KoinoTools");
 
 	if (m_self_patch.startup())

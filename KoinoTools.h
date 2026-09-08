@@ -21,7 +21,7 @@ class CKoinoToolsApp : public CWinApp
 public:
 	CKoinoToolsApp();
 
-	//20260907 by claude. 자체 패치 — 설치 폴더로 옮겨 심기 + 시작 시 버전 검사.
+	//20260907 by claude. 자체 패치 — 시작 시 버전 검사. 교체는 실행한 그 자리에서.
 	//원리와 서버 구성은 Common/system/CSCSelfPatch/SCSelfPatch.h 주석 참조.
 	CSCSelfPatch	m_self_patch;
 
