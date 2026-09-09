@@ -203,7 +203,6 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	if (SUCCEEDED(CoCreateInstance(CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_taskbar))))
 		m_taskbar->HrInit();
 
-
 	//CCmdLine test code
 	/*
 	CString param = _T("-i 70.117.80.127 -p 7002 -sn 171675 -fr 1572807 -id 1 -t 0 -rh 136902 -rd 10001 -gi None -gp 0 -pn \"구미 -&nbsp PC\" -pi 70.117.80.120 -un inoh.seo -ui 70.117.129.85 -tn 0 -p2p 1 -p2pi 70.117.80.120 -p2pp 7002 -sizex 0 -sizey 0 -wm 1 -wms \"water -mark -str\" -dm 0 -ra 1");
@@ -548,10 +547,11 @@ void CKoinoToolsDlg::thread_codesign()
 		//파일별 자동 라우팅: LMMAgent.exe 등 필수 목록은 with Manifest, 나머지는 No Manifest.
 		bool apply_manifest = is_manifest_required(filename);
 
-		//모드(with/No Manifest)만 orange 로 강조해 나머지 문장과 구분한다(색상별로 add 를 나눔).
-		m_rich.add(Gdiplus::Color(Gdiplus::Color::RoyalBlue), _T("codesign start : %s ("), filename);
-		m_rich.add(Gdiplus::Color(Gdiplus::Color::Orange), apply_manifest ? _T("with Manifest") : _T("No Manifest"));
-		m_rich.add(Gdiplus::Color(Gdiplus::Color::RoyalBlue), _T(") (%d/%d)...\n"), i + 1, m_files.size());
+		//모드 문구를 태그로 강조한다(with=crimson, No=blue, 둘 다 bold). addl_tagged 가 CSCParagraph 파서로 해석한다.
+		m_rich.addl_tagged(Gdiplus::Color::RoyalBlue, _T("codesign start : %s (%s) (%d/%d)..."),
+			filename,
+			apply_manifest ? _T("<b><cr=crimson>with Manifest</cr></b>") : _T("<b><cr=blue>No Manifest</cr></b>"),
+			i + 1, m_files.size());
 
 		//파일이 열려있으면 코드사인이 실패하므로 에러로 처리한다.
 		//_taccess()를 써봤으나 0이 리턴되고(사용중이 아니라고 판별)
