@@ -113,6 +113,7 @@ BEGIN_MESSAGE_MAP(CKoinoToolsDlg, CDialogEx)
 	ON_MESSAGE(WM_APP_CODESIGN_PROGRESS, &CKoinoToolsDlg::OnCodesignProgress)
 	ON_MESSAGE(WM_APP_CODESIGN_DONE, &CKoinoToolsDlg::OnCodesignDone)
 	ON_MESSAGE(WM_APP_SHOW_MSGBOX, &CKoinoToolsDlg::OnShowMsgbox)
+	ON_MESSAGE(WM_APP_UI_INVOKE, &CKoinoToolsDlg::OnUiInvoke)
 END_MESSAGE_MAP()
 
 
@@ -154,6 +155,10 @@ BOOL CKoinoToolsDlg::OnInitDialog()
 	m_resize.Add(IDC_LIST, 0, 0, 100, 0);
 	m_resize.Add(IDC_RICH, 0, 0, 100, 100);
 	m_resize.Add(IDC_BUTTON_SPLITTER, 0, 0, 0, 100);
+	//20260909 by claude. ptMinTrackSize 는 window rect(외곽) 기준이라, Win11 의 보이지 않는 리사이즈 테두리 때문에
+	//820x530 을 주면 보이는 창은 그만큼 작아진다. get_window_size_for_visible 로 그 창의 실측 보정을 더해
+	//"보이는 최소 크기"가 정확히 820x530 이 되게 한다.
+	m_resize.SetMinimumTrackingSize(get_window_size_for_visible(m_hWnd, 820, 530));
 
 	//단락 모드는 set_tagged_text 가 호출되는 시점의 색상·폰트·line_spacing 로 단락을 build 하므로
 	//모든 setter 가 반드시 set_tagged_text 보다 먼저 와야 한다.
@@ -335,8 +340,8 @@ void CKoinoToolsDlg::OnBnClickedCancel()
 //배율과 무관하게 이 값을 그대로 쓴다.
 void CKoinoToolsDlg::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
-	lpMMI->ptMinTrackSize.x = 820;
-	lpMMI->ptMinTrackSize.y = 530;
+	//lpMMI->ptMinTrackSize.x = 820;
+	//lpMMI->ptMinTrackSize.y = 530;
 
 	CDialogEx::OnGetMinMaxInfo(lpMMI);
 }
@@ -388,6 +393,49 @@ LRESULT CKoinoToolsDlg::OnShowMsgbox(WPARAM wParam, LPARAM lParam)
 {
 	const CString& text = *reinterpret_cast<const CString*>(wParam);
 	return (LRESULT)m_msgbox.DoModal(text, (int)lParam);
+}
+
+//임의의 UI 작업을 UI 스레드로 넘긴다. func 를 힙에 올려 lParam 으로 실어 보내고, 처리 실패 시엔 누수 방지로 해제한다.
+void CKoinoToolsDlg::invoke_ui(std::function<void()> func)
+{
+	const HWND hWnd = GetSafeHwnd();
+	if (!::IsWindow(hWnd))
+		return;
+
+	auto* pfunc = new std::function<void()>(std::move(func));
+	if (!::PostMessage(hWnd, WM_APP_UI_INVOKE, 0, reinterpret_cast<LPARAM>(pfunc)))
+		delete pfunc;
+}
+
+//WM_APP_UI_INVOKE 핸들러. 항상 UI 스레드에서 실행되므로 넘겨받은 람다가 m_rich 등 UI 를 안전하게 만진다.
+LRESULT CKoinoToolsDlg::OnUiInvoke(WPARAM /*wParam*/, LPARAM lParam)
+{
+	std::unique_ptr<std::function<void()>> pfunc(reinterpret_cast<std::function<void()>*>(lParam));
+	(*pfunc)();
+	return 0;
+}
+
+//워커 스레드 로그용. 문자열은 워커에서 만들고(add 는 포맷 함수라 %s 로 넘겨 재해석을 피한다) 실제 그리기는 UI 스레드에서.
+void CKoinoToolsDlg::rich_add(Gdiplus::Color cr, LPCTSTR lpszFormat, ...)
+{
+	CString s;
+	va_list args;
+	va_start(args, lpszFormat);
+	s.FormatV(lpszFormat, args);
+	va_end(args);
+
+	invoke_ui([this, cr, s]() { m_rich.add(cr, _T("%s"), (LPCTSTR)s); });
+}
+
+void CKoinoToolsDlg::rich_addl_tagged(Gdiplus::Color cr, LPCTSTR lpszFormat, ...)
+{
+	CString s;
+	va_list args;
+	va_start(args, lpszFormat);
+	s.FormatV(lpszFormat, args);
+	va_end(args);
+
+	invoke_ui([this, cr, s]() { m_rich.addl_tagged(cr, _T("%s"), (LPCTSTR)s); });
 }
 
 //워커 스레드가 각 단계(delcert / codesign #1 / #2)마다 PostMessage 로 진행률을 보내고, 여기서 progress 를 갱신한다.
@@ -491,7 +539,7 @@ void CKoinoToolsDlg::report_codesign_step_error(LPCTSTR step_name, DWORD exit_co
 	CString msg;
 	msg.Format(_T("%s 실패 [exit=%u]\n%s"), step_name, exit_code, output);
 
-	m_rich.add(Gdiplus::Color(Gdiplus::Color::Red), _T("%s\n"), msg);
+	rich_add(Gdiplus::Color(Gdiplus::Color::Red), _T("%s\n"), msg);
 	logWriteE(_T("%s 실패: exit=%u\n%s"), step_name, exit_code, output);
 	show_message(msg, MB_ICONERROR);
 }
@@ -548,7 +596,7 @@ void CKoinoToolsDlg::thread_codesign()
 		bool apply_manifest = is_manifest_required(filename);
 
 		//모드 문구를 태그로 강조한다(with=crimson, No=blue, 둘 다 bold). addl_tagged 가 CSCParagraph 파서로 해석한다.
-		m_rich.addl_tagged(Gdiplus::Color::RoyalBlue, _T("codesign start : %s (%s) (%d/%d)..."),
+		rich_addl_tagged(Gdiplus::Color::RoyalBlue, _T("codesign start : %s (%s) (%d/%d)..."),
 			filename,
 			apply_manifest ? _T("<b><cr=crimson>with Manifest</cr></b>") : _T("<b><cr=blue>No Manifest</cr></b>"),
 			i + 1, m_files.size());
@@ -560,12 +608,12 @@ void CKoinoToolsDlg::thread_codesign()
 		if (hWnd)
 		{
 			error_occured = true;
-			m_rich.add(Gdiplus::Color(Gdiplus::Color::Red),_T("파일이 사용중이므로 코드사인 할 수 없습니다.\n"));
+			rich_add(Gdiplus::Color(Gdiplus::Color::Red),_T("파일이 사용중이므로 코드사인 할 수 없습니다.\n"));
 			break;
 		}
 
 		//우선 해당 파일이 이미 codesign되어 있다면 오류가 발생하는 경우가 있으므로 delcert.exe로 지워준다.
-		m_rich.add(Gdiplus::Color::Transparent,_T("delcert : %s"), filename);
+		rich_add(Gdiplus::Color::Transparent,_T("delcert : %s"), filename);
 		cmd.Format(_T("\"%s\\delcert.exe\" \"%s\""), m_signtool_path, m_files[i]);
 		DWORD rc_del = 0;
 		result = run_command(cmd, INFINITE, &rc_del);
@@ -578,11 +626,11 @@ void CKoinoToolsDlg::thread_codesign()
 		if (!wait_until_file_writable(m_files[i], 10000))
 		{
 			error_occured = true;
-			m_rich.add(Gdiplus::Color(Gdiplus::Color::Red),_T(" 실패(파일 잠금이 해제되지 않음)\n"));
+			rich_add(Gdiplus::Color(Gdiplus::Color::Red),_T(" 실패(파일 잠금이 해제되지 않음)\n"));
 			logWriteE(_T("delcert 후 10초 내 파일 잠금 해제 실패: %s"), m_files[i]);
 			break;
 		}
-		m_rich.add(Gdiplus::Color(Gdiplus::Color::Blue),_T(" ok\n"));
+		rich_add(Gdiplus::Color(Gdiplus::Color::Blue),_T(" ok\n"));
 
 
 		if (apply_manifest)
@@ -591,14 +639,14 @@ void CKoinoToolsDlg::thread_codesign()
 			{
 				//return 으로 빠지면 완료 통지(WM_APP_CODESIGN_DONE)·progress 리셋이 누락되므로 error 로 처리하고 중단한다.
 				error_occured = true;
-				m_rich.add(Gdiplus::Color(Gdiplus::Color::Red), _T("manifest 파일이 존재하지 않습니다.\n%s\n"), manifest_file);
+				rich_add(Gdiplus::Color(Gdiplus::Color::Red), _T("manifest 파일이 존재하지 않습니다.\n%s\n"), manifest_file);
 				logWriteE(_T("manifest 파일 없음: %s"), manifest_file);
 				show_message(_T("manifest 파일이 존재하지 않습니다.\n\n") + manifest_file, MB_ICONERROR);
 				break;
 			}
 
 			cmd.Format(_T("\"%s\" -manifest \"%s\" -outputresource:\"%s\""), m_mt_path, manifest_file, m_files[i]);
-			m_rich.add(Gdiplus::Color::Transparent,_T("manifest cmd : %s\n"), cmd);
+			rich_add(Gdiplus::Color::Transparent,_T("manifest cmd : %s\n"), cmd);
 			DWORD rc_mt = 0;
 			result = run_command(cmd, INFINITE, &rc_mt);
 			logWriteD(_T("mt output (exit=%u):\n%s"), rc_mt, result);
@@ -613,7 +661,7 @@ void CKoinoToolsDlg::thread_codesign()
 			if (!wait_until_file_writable(m_files[i], 10000))
 			{
 				error_occured = true;
-				m_rich.add(Gdiplus::Color(Gdiplus::Color::Red),_T("manifest 삽입 후 파일 잠금이 해제되지 않았습니다.\n"));
+				rich_add(Gdiplus::Color(Gdiplus::Color::Red),_T("manifest 삽입 후 파일 잠금이 해제되지 않았습니다.\n"));
 				logWriteE(_T("mt 후 10초 내 파일 잠금 해제 실패: %s"), m_files[i]);
 				break;
 			}
@@ -626,7 +674,7 @@ void CKoinoToolsDlg::thread_codesign()
 		//Wait(10000);
 		cmd.Format(_T("\"%s\" sign /sha1 %s /s my /t http://timestamp.digicert.com /fd sha1 /v \"%s\""),
 			m_signtool_path, m_fingerprint, m_files[i]);
-		m_rich.add(Gdiplus::Color(Gdiplus::Color::DarkGray), _T("#1 phase codesign : %s\n"), cmd);
+		rich_add(Gdiplus::Color(Gdiplus::Color::DarkGray), _T("#1 phase codesign : %s\n"), cmd);
 		DWORD rc_sign1 = 0;
 		result = run_command(cmd, INFINITE, &rc_sign1);
 		logWriteD(_T("signtool #1 output (exit=%u):\n%s"), rc_sign1, result);
@@ -650,7 +698,7 @@ void CKoinoToolsDlg::thread_codesign()
 		wait_until_file_writable(m_files[i], 10000);
 		cmd.Format(_T("\"%s\" sign /sha1 %s /s my /tr http://timestamp.digicert.com /as /fd SHA256 /td sha256 /v \"%s\""),
 			m_signtool_path, m_fingerprint, m_files[i]);
-		m_rich.add(Gdiplus::Color(Gdiplus::Color::DarkGray), _T("#2 phase codesign : %s\n"), cmd);
+		rich_add(Gdiplus::Color(Gdiplus::Color::DarkGray), _T("#2 phase codesign : %s\n"), cmd);
 		DWORD rc_sign2 = 0;
 		result = run_command(cmd, INFINITE, &rc_sign2);
 		logWriteD(_T("signtool #2 output (exit=%u):\n%s"), rc_sign2, result);
@@ -668,7 +716,7 @@ void CKoinoToolsDlg::thread_codesign()
 		while (FindWindowByCaption(_T("토큰 로그온"), true) != NULL)
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-		m_rich.add(Gdiplus::Color(Gdiplus::Color::RoyalBlue),_T("%s codesign completed.\n"), filename);
+		rich_add(Gdiplus::Color(Gdiplus::Color::RoyalBlue),_T("%s codesign completed.\n"), filename);
 	}
 
 	m_thread_auto_password_input = false;
@@ -677,12 +725,12 @@ void CKoinoToolsDlg::thread_codesign()
 
 	if (error_occured)
 	{
-		m_rich.add(Gdiplus::Color(Gdiplus::Color::Red),_T("All codesign job cancelled.\n"));
+		rich_add(Gdiplus::Color(Gdiplus::Color::Red),_T("All codesign job cancelled.\n"));
 	}
 	else
 	{
 		TRACE(_T("codeSign job finished.\n"));
-		m_rich.add(Gdiplus::Color(Gdiplus::Color::Blue),_T("All files codesign completed.\n---------------------------------------\n"));
+		rich_add(Gdiplus::Color(Gdiplus::Color::Blue),_T("All files codesign completed.\n---------------------------------------\n"));
 	}
 
 	//20260722 by claude. codesign 중에는 thread_auto_password_input()이 "토큰 로그온" 창을 foreground로 끌어올리므로

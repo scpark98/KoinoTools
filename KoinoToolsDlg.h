@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <functional>	//20260909 by claude. invoke_ui(std::function<void()>) 마샬링용.
 #include "Common/device/keyboard/SCKeyInput/SCKeyInput.h"
 #include "Common/ResizeCtrl.h"
 #include "Common/ControlSplitter.h"
@@ -22,6 +23,10 @@
 //메시지박스를 항상 UI 스레드에서 띄우기 위한 메시지. 워커 스레드에서 SendMessage 로 보내면 UI 스레드로 마샬링되어
 //공유 멤버 m_msgbox 를 안전하게 사용할 수 있다. wParam = const CString*(본문), lParam = 버튼/아이콘 타입.
 #define WM_APP_SHOW_MSGBOX			(WM_APP + 3)
+//임의의 UI 작업(람다)을 워커 스레드에서 UI 스레드로 넘겨 실행하기 위한 범용 메시지. lParam = heap std::function<void()>*.
+//리치에디트 로그는 TOM(ITextDocument, COM STA)으로 bold 를 적용하는데 TOM 은 UI 스레드 전용이라, 워커에서 직접 쓰면
+//폴백(색만)으로 떨어져 bold 가 사라진다. 그래서 로그 쓰기를 invoke_ui 로 UI 스레드에 넘겨 TOM 경로를 타게 한다.
+#define WM_APP_UI_INVOKE			(WM_APP + 4)
 
 struct ITaskbarList3;	//작업표시줄 progress 표시용(Win7+). 정의는 .cpp 의 <shobjidl.h> 에서.
 
@@ -87,6 +92,14 @@ public:
 	//AfxMessageBox 대체. 어느 스레드에서 호출해도 WM_APP_SHOW_MSGBOX 로 UI 스레드에서 m_msgbox 를 띄우고 버튼 ID 를 반환한다.
 	int						show_message(const CString& text, int type = MB_OK);
 	afx_msg LRESULT			OnShowMsgbox(WPARAM wParam, LPARAM lParam);
+
+	//임의의 UI 작업(func)을 UI 스레드에서 실행한다. UI 스레드에서 불러도 UI 스레드에서 처리된다(PostMessage FIFO).
+	void					invoke_ui(std::function<void()> func);
+	afx_msg LRESULT			OnUiInvoke(WPARAM wParam, LPARAM lParam);	//lParam = heap std::function<void()>* 를 실행 후 해제.
+	//워커 스레드에서 m_rich 에 안전하게 로그를 남기기 위한 마샬링 래퍼. 워커에서 문자열을 만들고 실제 add/addl_tagged 는
+	//invoke_ui 로 UI 스레드에서 실행한다(TOM 경로 확보 → bold 정상 + 호출 순서 보존). m_rich 를 직접 쓰지 말고 이걸 쓴다.
+	void					rich_add(Gdiplus::Color cr, LPCTSTR lpszFormat, ...);
+	void					rich_addl_tagged(Gdiplus::Color cr, LPCTSTR lpszFormat, ...);
 
 	//product 선택, 각 항목 경로 및 존재여부 체크
 	bool					check_valid_condition();
