@@ -596,7 +596,7 @@ void CKoinoToolsDlg::thread_codesign()
 		bool apply_manifest = is_manifest_required(filename);
 
 		//모드 문구를 태그로 강조한다(with=crimson, No=blue, 둘 다 bold). addl_tagged 가 CSCParagraph 파서로 해석한다.
-		rich_addl_tagged(Gdiplus::Color::RoyalBlue, _T("codesign start : %s (%s) (%d/%d)..."),
+		rich_addl_tagged(Gdiplus::Color::RoyalBlue, _T("\ncodesign start : %s (%s) (%d/%d)..."),
 			filename,
 			apply_manifest ? _T("<b><cr=crimson>with Manifest</cr></b>") : _T("<b><cr=blue>No Manifest</cr></b>"),
 			i + 1, m_files.size());
